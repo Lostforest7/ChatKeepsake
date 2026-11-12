@@ -325,7 +325,14 @@ test('export and transcribe a synthetic chat through the local API', { timeout: 
   await post('open-exports', { path: directory });
   assert.deepEqual(opened, [path.join(directory, 'exports')]);
   const account = await post('accounts', { path: '' });
-  assert.deepEqual(account.accounts, ['wxid_fixture', 'wxid_old']);
+  assert.deepEqual(account.accounts, ['wxid_fixture', 'wxid_old'], JSON.stringify({
+    moved, canonical: fs.realpathSync(moved), expectedFolders: [...canonicalFolders.keys()],
+    entries: fs.readdirSync(moved),
+    accountFolders: fs.readdirSync(moved).map(folder => ({
+      folder, files: fs.readdirSync(path.join(moved, folder, 'db_storage', 'message'))
+    })),
+    databaseCommands: commands.filter(args => args[0] === 'db'), account
+  }));
   assert.ok(account.locations[0].accountDetails[0].updatedAt > account.locations[0].accountDetails[1].updatedAt);
   assert.deepEqual(account.locations[0].accountDetails.map(item => item.inUse), [true, false]);
   assert.equal(pathKey(account.directory), pathKey(fs.realpathSync(moved)));
