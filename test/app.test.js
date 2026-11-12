@@ -78,7 +78,7 @@ test('the launcher reuses a compatible process and warns about an older one', { 
 });
 
 test('export and transcribe a synthetic chat through the local API', { timeout: 20000 }, async t => {
-  const directory = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'chatkeepsake-api-')));
+  const directory = await fs.promises.realpath(fs.mkdtempSync(path.join(os.tmpdir(), 'chatkeepsake-api-')));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   const image = fs.readFileSync(path.join(demo, 'media/demo/trail.png'));
   const audio = fs.readFileSync(path.join(demo, 'media/demo/voice.wav'));
@@ -103,7 +103,7 @@ test('export and transcribe a synthetic chat through the local API', { timeout: 
     }
   }
   const pathKey = file => process.platform === 'win32' ? path.resolve(file).toLowerCase() : path.resolve(file);
-  const canonicalFolders = new Map([...validFolders].map(([folder, ids]) => [pathKey(fs.realpathSync(folder)), ids]));
+  const canonicalFolders = new Map([...validFolders].map(([folder, ids]) => [pathKey(folder), ids]));
   const accountFolder = path.join(moved, 'wxid_fixture_a123');
   const cache = path.join(accountFolder, 'msg', 'file', '2026-01');
   fs.mkdirSync(cache, { recursive: true });
@@ -325,25 +325,18 @@ test('export and transcribe a synthetic chat through the local API', { timeout: 
   await post('open-exports', { path: directory });
   assert.deepEqual(opened, [path.join(directory, 'exports')]);
   const account = await post('accounts', { path: '' });
-  assert.deepEqual(account.accounts, ['wxid_fixture', 'wxid_old'], JSON.stringify({
-    moved, canonical: fs.realpathSync(moved), expectedFolders: [...canonicalFolders.keys()],
-    entries: fs.readdirSync(moved),
-    accountFolders: fs.readdirSync(moved).map(folder => ({
-      folder, files: fs.readdirSync(path.join(moved, folder, 'db_storage', 'message'))
-    })),
-    databaseCommands: commands.filter(args => args[0] === 'db'), account
-  }));
+  assert.deepEqual(account.accounts, ['wxid_fixture', 'wxid_old']);
   assert.ok(account.locations[0].accountDetails[0].updatedAt > account.locations[0].accountDetails[1].updatedAt);
   assert.deepEqual(account.locations[0].accountDetails.map(item => item.inUse), [true, false]);
-  assert.equal(pathKey(account.directory), pathKey(fs.realpathSync(moved)));
-  assert.deepEqual(account.locations.map(item => pathKey(item.directory)), [moved, other].map(item => pathKey(fs.realpathSync(item))));
+  assert.equal(pathKey(account.directory), pathKey(moved));
+  assert.deepEqual(account.locations.map(item => pathKey(item.directory)), [moved, other].map(pathKey));
   const manual = await post('accounts', { path: path.join(moved, 'wxid_fixture_a123', 'db_storage') });
   assert.deepEqual(manual.accounts, ['wxid_fixture']);
   const scan = await discoverWeChatAccounts(backend, '', async () => ({ configured: [], defaults: [], drives: [directory] }), async () => []);
-  assert.deepEqual(new Set(scan.map(item => pathKey(item.directory))), new Set([moved, other].map(item => pathKey(fs.realpathSync(item)))));
+  assert.deepEqual(new Set(scan.map(item => pathKey(item.directory))), new Set([moved, other].map(pathKey)));
   await post('configure', { path: account.directory, account: account.accounts[0] });
   const checked = await post('test');
-  assert.equal(pathKey(checked.lastConnected), pathKey(fs.realpathSync(accountFolder)));
+  assert.equal(pathKey(checked.lastConnected), pathKey(accountFolder));
   assert.deepEqual(checked.lastProfile, { nickname: '小林', alias: 'lin-demo' });
   const rediscovered = await post('accounts', { path: '' });
   assert.equal(rediscovered.lastConnected, checked.lastConnected);
