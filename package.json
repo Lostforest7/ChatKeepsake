@@ -1,0 +1,14 @@
+{
+  "name": "chatkeepsake",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "description": "A local Windows tool for archiving personal WeChat chats.",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

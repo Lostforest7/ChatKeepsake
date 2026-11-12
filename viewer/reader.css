@@ -1,0 +1,121 @@
+:root {
+  font: 16px/1.65 system-ui, "Microsoft YaHei", sans-serif;
+  color: #20322d;
+  background: #f3f6f4;
+  color-scheme: light;
+}
+
+body {
+  margin: 0;
+}
+
+header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 14px 20px;
+  background: #fff;
+  border-bottom: 1px solid #d7e2dc;
+}
+
+header > div,
+main {
+  max-width: 760px;
+  margin: auto;
+}
+
+main {
+  padding: 8px 16px 40px;
+}
+
+h1 {
+  margin: 0;
+  font-size: 22px;
+}
+
+header p {
+  margin: 4px 0 10px;
+}
+
+.note,
+.meta {
+  color: #4b6057;
+  font-size: 14px;
+}
+
+.meta {
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+
+input {
+  box-sizing: border-box;
+  width: min(100%, 340px);
+  padding: 9px;
+  margin-right: 10px;
+  border: 1px solid #9aaa9e;
+  border-radius: 6px;
+  font: inherit;
+}
+
+article {
+  margin: 12px 0;
+  padding: 13px 16px;
+  background: #fff;
+  border-radius: 12px;
+  overflow-wrap: anywhere;
+}
+
+article.mine {
+  background: #e0f1e7;
+}
+
+.content,
+.note {
+  white-space: pre-wrap;
+}
+
+.note {
+  margin: 8px 0;
+}
+
+img {
+  max-width: min(100%, 460px);
+  max-height: 420px;
+  border-radius: 7px;
+  vertical-align: middle;
+}
+
+audio,
+video {
+  max-width: 100%;
+}
+
+video {
+  max-height: 420px;
+  border-radius: 7px;
+  background: #172620;
+}
+
+a {
+  color: #176149;
+}
+
+.attachment {
+  margin: 4px 0;
+}
+
+.forward summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.forward .content {
+  margin-top: 8px;
+  padding-left: 12px;
+  border-left: 2px solid #b4c8bb;
+}
+
+[hidden] {
+  display: none !important;
+}

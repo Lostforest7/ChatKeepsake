@@ -1,0 +1,35 @@
+{
+  "session": { "displayName": "周末散步 · 虚构示例" },
+  "messages": [
+    {
+      "localType": 1,
+      "isSend": 0,
+      "senderDisplayName": "小林",
+      "formattedTime": "2026-05-16 09:12:10",
+      "content": "这条小路走到湖边大概二十分钟，周六可以一起去。"
+    },
+    {
+      "localType": 3,
+      "isSend": 0,
+      "senderDisplayName": "小林",
+      "formattedTime": "2026-05-16 09:12:32",
+      "content": "media/demo/trail.png"
+    },
+    {
+      "localType": 34,
+      "isSend": 1,
+      "senderDisplayName": "我",
+      "formattedTime": "2026-05-16 09:15:00",
+      "content": "media/demo/voice.wav",
+      "voiceTranscript": "See you by the lake on Saturday.",
+      "voiceTranscriptStatus": "ok"
+    },
+    {
+      "localType": 1,
+      "isSend": 1,
+      "senderDisplayName": "我",
+      "formattedTime": "2026-05-16 09:15:12",
+      "content": "那就在湖边见！我带点吃的。"
+    }
+  ]
+}

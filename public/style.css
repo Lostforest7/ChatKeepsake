@@ -1,0 +1,104 @@
+:root {
+  color-scheme: light;
+  --text: #182c25;
+  --subtle: #4a6257;
+  --green: #176149;
+  --deep-green: #104a37;
+  --line: #d3dfd8;
+  --mint: #e5f2e9;
+  --paper: #fff;
+  --page: #f5f7f3;
+  font: 15px/1.55 system-ui, "Microsoft YaHei", sans-serif;
+  color: var(--text);
+  background: var(--page);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; }
+h1, h2, h3, p { margin: 0; }
+button, input, select { font: inherit; }
+.shell { width: min(1080px, 100% - 40px); margin-inline: auto; }
+.topbar { border-bottom: 1px solid var(--line); background: var(--paper); }
+.topbar-inner { display: flex; justify-content: space-between; align-items: center; min-height: 63px; gap: 12px; }
+.brand { font-size: 17px; font-weight: 750; display: flex; align-items: center; gap: 10px; letter-spacing: -.025em; }
+.mark { display: grid; place-items: center; background: var(--deep-green); color: white; border-radius: 9px; width: 33px; height: 33px; }
+.local { border-radius: 999px; background: var(--mint); color: var(--deep-green); font-size: 12px; padding: 4px 10px; white-space: nowrap; }
+.hero { display: grid; grid-template-columns: 1fr 310px; align-items: end; gap: 24px; padding-block: 35px 27px; }
+.eyebrow { color: var(--deep-green); font-weight: 700; font-size: 13px; letter-spacing: .1em; }
+h1 { font-size: clamp(2.05rem, 4.7vw, 3.2rem); line-height: 1.12; margin-block: 8px 11px; letter-spacing: -.05em; }
+.lede { max-width: 520px; color: var(--subtle); }
+.preview { background: var(--mint); border: 1px solid #cddfd3; border-radius: 16px; padding: 15px 18px; }
+.preview p { margin-block: 5px 10px; color: var(--subtle); }
+.workspace { display: grid; grid-template-columns: minmax(0, 1fr) minmax(220px, 270px); gap: 20px; align-items: start; }
+main { display: grid; gap: 14px; }
+.step, .status-panel { border: 1px solid var(--line); background: var(--paper); border-radius: 15px; padding: 17px; }
+.step-head { display: flex; align-items: flex-start; gap: 11px; }
+.step-head > div { flex: 1; min-width: 0; }
+.step-head p { color: var(--subtle); font-size: 14px; margin-top: 3px; }
+.number { display: grid; place-items: center; flex: 0 0 30px; height: 30px; border-radius: 9px; background: var(--mint); color: var(--deep-green); font-weight: 750; }
+h2 { font-size: 19px; line-height: 1.4; }
+h3 { font-size: 13px; margin-bottom: 5px; }
+.step-body { margin: 13px 0 0 41px; }
+fieldset { padding: 0; border: 0; min-width: 0; }
+.actions, .input-action, .checks, .dates { display: flex; align-items: center; gap: 8px; }
+.actions, .checks { flex-wrap: wrap; }
+.input-action > input, .input-action > select { flex: 1 1 0; min-width: 0; }
+.dates > .field { flex: 1 1 0; min-width: 0; }
+.field { display: grid; gap: 4px; margin-bottom: 10px; }
+.field label, .checks label { font-weight: 640; font-size: 14px; }
+.field label .hint { margin-left: 3px; }
+input:not([type="checkbox"]), select {
+  width: 100%; min-width: 0; height: 39px; padding: 7px 9px; color: var(--text);
+  background: white; border: 1px solid #9fb5a8; border-radius: 8px;
+}
+input::placeholder { color: #52695e; }
+.short-select { width: auto; }
+input[type="checkbox"] { accent-color: var(--green); }
+button, .button {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 39px;
+  padding: 8px 12px; color: white; background: var(--green); border: 1px solid var(--green); border-radius: 8px;
+  text-decoration: none; font-weight: 650; line-height: 1.35; white-space: nowrap; cursor: pointer;
+}
+button:hover:not(:disabled), .button:hover { background: var(--deep-green); color: white; }
+.secondary { background: white; border-color: #a6bcb0; color: var(--deep-green); }
+button:disabled, fieldset:disabled input, fieldset:disabled select { background: #f1f4f1; color: #63766b; border-color: var(--line); cursor: default; }
+:is(a, button, input, select, summary):focus-visible { outline: 3px solid #4a9c7a; outline-offset: 2px; }
+.hint { color: var(--subtle); font-size: 13px; font-weight: 400; }
+p.hint { margin-block: 7px 8px; }
+.checks { margin-bottom: 12px; gap: 12px; }
+details { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 9px; font-size: 14px; }
+details p { margin-block: 6px 9px; color: var(--subtle); }
+summary { cursor: pointer; color: var(--deep-green); font-weight: 650; }
+.next-action { margin-top: 14px; padding: 12px 14px; background: var(--mint); border-radius: 10px; }
+.next-action h3 { font-size: 15px; }
+.next-action ol { padding-left: 22px; margin: 6px 0 10px; }
+.next-action li + li { margin-top: 6px; }
+#manual-location { margin-bottom: 12px; }
+#manual-location label { display: block; margin-block: 6px 4px; }
+.status-panel { position: sticky; top: 16px; }
+.status-heading { display: flex; justify-content: space-between; align-items: center; }
+.status-heading h2 { font-size: 16px; }
+.status-dot { width: 10px; height: 10px; border-radius: 50%; background: #83988e; }
+.status-dot[data-kind="running"] { background: #9c650a; }
+.status-dot[data-kind="done"] { background: #187151; }
+.status-dot[data-kind="error"] { background: #ad4033; }
+#status { margin-top: 7px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.save-location { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
+.output-path { font-size: 13px; color: var(--subtle); overflow-wrap: anywhere; }
+.voice-setup { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+footer { color: var(--subtle); padding-block: 18px 30px; font-size: 13px; }
+
+@media (max-width: 780px) {
+  .hero { grid-template-columns: 1fr; align-items: start; gap: 14px; padding-block: 24px 16px; }
+  .workspace { display: flex; flex-direction: column; gap: 12px; }
+  main, .status-panel { width: 100%; }
+  .status-panel { order: -1; z-index: 2; top: 0; padding: 10px 13px; }
+}
+@media (max-width: 470px) {
+  .shell { width: calc(100% - 24px); }
+  .step { padding: 13px; }
+  .step-body { margin-left: 0; }
+  .input-action { align-items: stretch; }
+  .step-head p { font-size: 13px; }
+}

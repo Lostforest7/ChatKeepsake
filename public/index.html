@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ChatKeepsake · 微信聊天记录整理工具</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="shell topbar-inner">
+      <span class="brand"><span class="mark" aria-hidden="true">聊</span> ChatKeepsake</span>
+      <span class="local">Windows 电脑</span>
+    </div>
+  </header>
+
+  <div class="shell">
+    <div class="hero">
+      <div>
+        <p class="eyebrow">微信聊天保存工具</p>
+        <h1>把微信聊天存成文件</h1>
+        <p class="lede">保存某个人或某个群的聊天。保存后可以搜索、看图、听语音。</p>
+      </div>
+      <div class="preview">
+        <span class="eyebrow">想先看看效果？</span>
+        <p>这里有一段示例聊天，可以试着搜索消息、看图片和听语音。</p>
+        <a class="button secondary" href="/demo/" target="_blank" rel="noopener">看看保存后的样子 <span aria-hidden="true">↗</span></a>
+      </div>
+    </div>
+
+    <div class="workspace">
+      <main id="steps">
+        <section class="step" aria-labelledby="connect-title">
+          <div class="step-head">
+            <span class="number" aria-hidden="true">1</span>
+            <div><h2 id="connect-title">连接微信</h2><p>连接后就可以选择想保存的聊天。</p></div>
+          </div>
+          <div id="component-actions" class="step-body">
+            <p id="component-help" class="hint">首次保存微信聊天时，联网安装一次读取助手。</p>
+            <div class="actions">
+              <button type="button" id="install" aria-describedby="component-help" disabled>安装读取助手</button>
+            </div>
+            <details id="install-help" hidden>
+              <summary>安装遇到问题</summary>
+              <p>也可以在浏览器下载 WeFlow，再选中 ZIP 文件安装。手头已有安装包时，可以直接选择。</p>
+              <div class="actions">
+                <a id="download" class="button secondary" target="_blank" rel="noopener">下载 WeFlow ZIP ↗</a>
+                <button type="button" id="install-file" class="secondary" disabled>选择 ZIP 文件</button>
+                <input type="file" id="component-file" accept=".zip,application/zip" hidden>
+              </div>
+            </details>
+          </div>
+          <fieldset id="connection" class="step-body" hidden disabled>
+            <p id="current-account-text" class="hint">正在找这台电脑上登录的微信。</p>
+            <div class="actions">
+              <button type="button" id="use-current" hidden>使用当前微信</button>
+              <button type="button" id="find-accounts" class="secondary">重新查找</button>
+            </div>
+            <div id="connect-next" class="next-action" hidden>
+              <h3>第一次连接微信</h3>
+              <ol>
+                <li>如果还没用管理员身份启动，请关掉启动时打开的窗口，右键点击「启动 ChatKeepsake.cmd」，选择「以管理员身份运行」。回来点「使用当前微信」。</li>
+                <li>点「开始连接」，再从屏幕右下角的微信图标退出微信。等几秒后重新打开并登录同一个账号。</li>
+              </ol>
+              <div class="actions">
+                <button type="button" id="key">开始连接</button>
+                <button type="button" id="test" class="secondary">再试一次</button>
+              </div>
+            </div>
+            <details id="other-accounts">
+              <summary>我想用其他微信账号</summary>
+              <p>如果你以前在这台电脑用过其他微信账号，可以在这里找它们留下的聊天。</p>
+              <div class="field" id="location-field" hidden>
+                <label for="location">微信把聊天保存在这里</label>
+                <select id="location"></select>
+              </div>
+              <div class="field">
+                <label for="account">要使用的微信</label>
+                <div class="input-action">
+                  <select id="account" aria-describedby="account-help"><option value="">请先查找微信</option></select>
+                  <button type="button" id="save-account" class="secondary" disabled>使用所选微信</button>
+                </div>
+                <p id="account-help" class="hint">以前的账号可能只能显示日期，连上后会尽量显示昵称。</p>
+              </div>
+              <details id="manual-location">
+                <summary>找不到我的微信</summary>
+                <p>到电脑版微信的设置里，找到保存聊天的位置，复制地址到这里。</p>
+                <label for="directory">粘贴地址</label>
+                <div class="input-action">
+                  <input type="text" id="directory" autocomplete="off" placeholder="粘贴从微信设置里复制的地址">
+                  <button type="button" id="find-in-directory" class="secondary">在这里找</button>
+                </div>
+              </details>
+              <details id="account-id-details" hidden>
+                <summary>查看排查问题用的信息</summary>
+                <p>账号编号 <code id="selected-account-id"></code></p>
+                <p id="found-directory" class="output-path"></p>
+              </details>
+            </details>
+          </fieldset>
+        </section>
+
+        <section class="step" aria-labelledby="export-title">
+          <div class="step-head">
+            <span class="number" aria-hidden="true">2</span>
+            <div><h2 id="export-title">选择要保存的聊天</h2><p id="export-help">连上微信后，这里会显示你聊过的人和群。</p></div>
+          </div>
+          <fieldset id="export-fields" class="step-body" hidden disabled>
+            <div class="field">
+              <label for="search">找联系人或群聊</label>
+              <div class="input-action">
+                <input type="search" id="search" placeholder="输入昵称、备注或群名">
+                <button type="button" id="sessions" class="secondary">刷新列表</button>
+              </div>
+            </div>
+            <div class="field">
+              <label for="session">要保存的聊天</label>
+              <select id="session"><option value="">连上微信后才能选择</option></select>
+            </div>
+            <p class="hint">日期都留空，就保存这段聊天的全部记录。</p>
+            <div class="dates">
+              <div class="field"><label for="start">开始日期 <span class="hint">可留空</span></label><input type="date" id="start"></div>
+              <div class="field"><label for="end">结束日期 <span class="hint">可留空</span></label><input type="date" id="end"></div>
+            </div>
+            <div class="checks">
+              <label><input type="checkbox" id="images" checked> 同时保存图片</label>
+              <label><input type="checkbox" id="voices" checked> 同时保存语音</label>
+              <label><input type="checkbox" id="files" checked> 同时保存文件</label>
+              <label><input type="checkbox" id="videos"> 同时保存视频</label>
+            </div>
+            <div class="actions"><button type="button" id="export" disabled>保存这段聊天</button></div>
+            <details>
+              <summary>图片没保存下来？</summary>
+              <p>工具会自动准备。还有图片没保存时，请在电脑版微信打开这些图片，然后再保存一次聊天。只在手机上能看到的图片，请先通过微信搬到电脑。</p>
+              <button type="button" id="image-key" class="secondary">重新准备图片</button>
+            </details>
+          </fieldset>
+        </section>
+
+        <section class="step" aria-labelledby="archives-title">
+          <div class="step-head">
+            <span class="number" aria-hidden="true">3</span>
+            <div><h2 id="archives-title">打开已保存的聊天</h2><p>打开后可以搜索消息、查看图片和播放语音。</p></div>
+          </div>
+          <div id="saved-controls" class="step-body" hidden>
+            <div class="field">
+              <label for="archive">已经保存的聊天</label>
+              <div class="input-action">
+                <select id="archive"><option value="">还没有保存过聊天</option></select>
+                <button type="button" class="secondary" id="refresh">刷新</button>
+              </div>
+            </div>
+            <p id="archive-summary" class="hint">保存好以后，聊天就会出现在这里。</p>
+            <p id="archive-image-help" class="hint" hidden>可以在电脑版微信打开没存下来的图片，再保存一次这段聊天。</p>
+            <p id="archive-file-help" class="hint" hidden>可以在电脑版微信下载没存下来的文件或视频，再保存一次这段聊天。</p>
+            <div class="actions">
+              <button type="button" id="open-reader" disabled>打开聊天记录</button>
+              <button type="button" id="open-folder" class="secondary" disabled>打开文件夹</button>
+            </div>
+            <div id="voice-setup" class="voice-setup" hidden>
+              <div class="actions">
+                <button type="button" id="transcribe" class="secondary" disabled>把语音变成文字</button>
+                <label for="language">语音语言</label>
+                <select id="language" class="short-select">
+                  <option value="auto" selected>自动识别（逐条语音）</option>
+                  <option value="zh">中文</option>
+                  <option value="en">英文</option>
+                </select>
+              </div>
+              <p id="voice-help" class="hint"></p>
+            </div>
+          </div>
+          <div class="step-body">
+            <button type="button" id="open-exports" class="secondary" disabled>打开保存位置</button>
+            <p class="hint">每次保存的聊天都有一个文件夹。要移动聊天，请把整个文件夹一起移动。</p>
+          </div>
+        </section>
+      </main>
+
+      <aside class="status-panel" aria-label="操作状态">
+        <div class="status-heading"><h2>提示</h2><span class="status-dot" id="status-dot" data-kind="idle"></span></div>
+        <p id="status" role="status" aria-atomic="true">正在打开工具。</p>
+        <div class="save-location" id="save-location" hidden>
+          <h3>保存路径</h3>
+          <p id="output-path" class="output-path"></p>
+        </div>
+      </aside>
+    </div>
+    <footer>聊天文件保存在这台电脑上。使用时请保持启动窗口打开。</footer>
+  </div>
+</body>
+</html>
