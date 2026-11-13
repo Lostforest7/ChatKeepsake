@@ -1,6 +1,6 @@
 {
   "name": "chatkeepsake",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "private": true,
   "license": "MIT",
   "description": "A local Windows tool for archiving personal WeChat chats.",
@@ -10,5 +10,8 @@
   },
   "engines": {
     "node": ">=20"
+  },
+  "dependencies": {
+    "write-excel-file": "4.1.1"
   }
 }

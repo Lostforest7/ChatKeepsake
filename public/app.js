@@ -54,7 +54,7 @@ function updateControls() {
   const busy = requesting || running || checking;
   const installed = Boolean(environment.installed);
   const selected = selectedRecord();
-  const savePath = selected?.directory || environment.exportsDirectory || '';
+  const savePath = environment.exportsDirectory || '';
   $('save-location').hidden = !savePath;
   if ($('output-path').textContent !== savePath) $('output-path').textContent = savePath;
   $('component-actions').hidden = installed;
@@ -77,8 +77,10 @@ function updateControls() {
   $('saved-controls').hidden = records.length === 0;
   $('refresh').disabled = busy;
   $('open-reader').disabled = busy || !selected;
+  $('open-excel').disabled = busy || !selected;
   $('open-folder').disabled = busy || !selected;
   $('open-exports').disabled = busy || !environment.exportsDirectory;
+  $('change-location').disabled = busy || !environment.exportsDirectory;
   const hasVoice = Boolean(selected?.counts.voiceFiles);
   const canTranscribe = hasVoice && (environment.voiceSupported || environment.voiceReady);
   $('voice-setup').hidden = !hasVoice;
@@ -95,7 +97,7 @@ function updateControls() {
 
 async function loadEnvironment() {
   const info = await call('info');
-  if (info.apiVersion !== 7) {
+  if (info.apiVersion !== 8) {
     throw new Error('旧版 ChatKeepsake 还在运行。请关闭原来的启动窗口，再从文件夹打开工具。');
   }
   environment = info;
@@ -125,6 +127,8 @@ function renderSessions() {
 
 function renderRecord() {
   const record = selectedRecord();
+  $('archive-path').hidden = !record?.directory;
+  $('archive-path').textContent = record?.directory || '';
   const missingImages = record?.images ? record.counts.images - record.counts.imageFiles : 0;
   $('archive-image-help').hidden = missingImages <= 0;
   $('archive-file-help').hidden = true;
@@ -336,6 +340,19 @@ bind('export', async () => track(await call('export', {
 })));
 
 $('archive').addEventListener('change', renderRecord);
+bind('change-location', async () => {
+  const previous = $('status').textContent;
+  const previousKind = $('status-dot').dataset.kind;
+  notice('请在 Windows 文件夹窗口中选择保存位置。', 'running');
+  const result = await call('save-location');
+  if (result.cancelled) {
+    notice(previous, previousKind);
+    return;
+  }
+  environment.exportsDirectory = result.exportsDirectory;
+  await refreshRecords();
+  notice(result.message, 'done');
+});
 bind('refresh', async () => {
   await loadEnvironment();
   await refreshRecords();
@@ -345,8 +362,9 @@ bind('open-exports', async () => {
   const result = await call('open-exports');
   notice(result.message, 'done');
 });
-for (const target of ['reader', 'folder']) {
+for (const target of ['reader', 'excel', 'folder']) {
   bind('open-' + target, async () => {
+    if (target === 'excel') notice('正在准备 Excel 文件。', 'running');
     const result = await call('open', { id: $('archive').value, target });
     notice(result.message, 'done');
   });

@@ -17,10 +17,12 @@ voice-build-*/
 /.local/
 running.lock
 last-connected.json
+save-location.json
 导出说明.json
 完整聊天记录.html
 聊天记录.json
 聊天记录.txt
+聊天记录.xlsx
 voice-transcripts.json
 .pending-*/
 
@@ -43,6 +45,11 @@ config.json
 !demo/media/demo/voice.wav
 *.log
 *.tmp
+聊天记录.xlsx.*.bak
+完整聊天记录.html.*.bak
+聊天记录.txt.*.bak
+聊天记录.json.*.bak
+导出说明.json.*.bak
 __pycache__/
 .DS_Store
 Thumbs.db

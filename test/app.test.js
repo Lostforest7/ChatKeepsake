@@ -85,6 +85,9 @@ test('export and transcribe a synthetic chat through the local API', { timeout: 
   const video = Buffer.from('synthetic MP4 payload');
   const commands = [];
   const opened = [];
+  const customDirectory = path.join(directory, '保存位置 & 中文');
+  fs.mkdirSync(customDirectory);
+  const folderSelections = ['', path.join(directory, 'missing-folder'), customDirectory];
   let helperInstalled = false;
   let installAttempts = 0;
   let imagesReady = false;
@@ -264,6 +267,7 @@ test('export and transcribe a synthetic chat through the local API', { timeout: 
     findAccounts: (engine, manualPath) => discoverWeChatAccounts(engine, manualPath, async () => ({
       configured: await configuredPaths([roaming]), defaults: [stale, other], drives: []
     }), async details => details.flatMap((item, index) => item.id === 'wxid_fixture' ? [index] : [])),
+    chooseFolder: async () => folderSelections.shift(),
     openPath: async target => opened.push(target)
   });
   server.listen(0, '127.0.0.1');
@@ -311,7 +315,7 @@ test('export and transcribe a synthetic chat through the local API', { timeout: 
   assert.equal(info.voiceReady, false);
   assert.equal(info.voiceSupported, true);
   assert.equal(info.voiceDownloadMb, 600);
-  assert.equal(info.apiVersion, 7);
+  assert.equal(info.apiVersion, 8);
   assert.equal(info.exportsDirectory, path.join(directory, 'exports'));
   assert.equal(info.installed, false);
   assert.equal((await call('install-online', {}, { 'X-Local-Token': 'invalid' })).status, 403);
@@ -326,6 +330,10 @@ test('export and transcribe a synthetic chat through the local API', { timeout: 
   assert.equal(installAttempts, 2);
   assert.deepEqual(commands, [], 'Installing the helper must not run WeFlow.');
   assert.equal((await call('open-exports', {}, { 'X-Local-Token': 'invalid' })).status, 403);
+  assert.equal((await call('save-location', {}, { Origin: 'https://example.invalid' })).status, 403);
+  assert.equal((await post('save-location')).cancelled, true);
+  assert.equal((await call('save-location')).status, 400);
+  assert.equal((await post('info')).exportsDirectory, info.exportsDirectory);
   await post('open-exports', { path: directory });
   assert.deepEqual(opened, [path.join(directory, 'exports')]);
   const account = await post('accounts', { path: '' });
@@ -361,6 +369,8 @@ test('export and transcribe a synthetic chat through the local API', { timeout: 
   const readJson = name => JSON.parse(fs.readFileSync(path.join(output, name), 'utf8'));
   const html = () => fs.readFileSync(path.join(output, '完整聊天记录.html'), 'utf8');
   const manifest = readJson('导出说明.json');
+  const excel = path.join(output, '聊天记录.xlsx');
+  assert.ok(fs.statSync(excel).size > 0);
   assert.deepEqual(manifest.counts, { messages: 15, images: 2, imageFiles: 1, voices: 2, voiceFiles: 2,
     files: 4, savedFiles: 2, videos: 3, videoFiles: 2 });
   assert.equal(manifest.start, '2026-01-01');
@@ -394,6 +404,30 @@ test('export and transcribe a synthetic chat through the local API', { timeout: 
   assert.deepEqual(opened, [path.join(directory, 'exports'), path.join(output, '完整聊天记录.html')]);
   assert.equal((await call('open', { id: '../../', target: 'folder' })).status, 400);
 
+  // Older archives have no workbook and can be updated from their saved JSON.
+  fs.unlinkSync(excel);
+  await post('open', { id, target: 'excel' });
+  assert.equal(opened.at(-1), excel);
+  const beforeTranscript = fs.readFileSync(excel);
+  const newFolder = fs.realpathSync.native(customDirectory);
+  assert.equal((await post('save-location')).exportsDirectory, newFolder);
+  const restarted = createServer({ dataDirectory: directory });
+  restarted.server.listen(0, '127.0.0.1');
+  await once(restarted.server, 'listening');
+  try {
+    const address = 'http://127.0.0.1:' + restarted.server.address().port;
+    const savedInfo = await fetch(address + '/api/info', {
+      method: 'POST', headers: { Origin: address, 'X-Local-Token': restarted.token }
+    });
+    assert.equal((await savedInfo.json()).exportsDirectory, newFolder);
+  } finally {
+    restarted.server.closeAllConnections();
+    await new Promise(resolve => restarted.server.close(resolve));
+  }
+  await post('open-exports');
+  assert.equal(opened.at(-1), newFolder);
+  assert.deepEqual((await post('archives')).archives.map(record => [record.id, record.directory]), [[id, output]]);
+
   assert.equal(setupAttempts, 0, 'Opening and exporting should not download the speech runtime');
   assert.equal((await call('transcribe', { id, language: 'invalid' })).status, 400);
   assert.equal(setupAttempts, 0);
@@ -405,6 +439,7 @@ test('export and transcribe a synthetic chat through the local API', { timeout: 
   assert.match(result.message, /1 条语音生成文字，有 1 条没能转成文字/);
   assert.match(html(), /这是一条合成语音/);
   assert.match(fs.readFileSync(path.join(output, '聊天记录.txt'), 'utf8'), /这是一条合成语音/);
+  assert.notDeepEqual(fs.readFileSync(excel), beforeTranscript);
   assert.equal(readJson('导出说明.json').transcription.recognized, 1);
   assert.equal(readJson('导出说明.json').transcription.language, 'auto');
   assert.match(html(), /<video controls[^>]+clip\.mp4/);
@@ -424,7 +459,9 @@ test('export and transcribe a synthetic chat through the local API', { timeout: 
   const textOnly = await complete();
   assert.equal(commands.filter(args => args[1] === 'voice-data').length, repairCalls);
   assert.equal(photoPrepCalls(), 1);
-  const textOnlyReader = fs.readFileSync(path.join(directory, 'exports', textOnly.id, '完整聊天记录.html'), 'utf8');
+  const textOnlyReader = fs.readFileSync(path.join(newFolder, textOnly.id, '完整聊天记录.html'), 'utf8');
+  assert.ok(fs.statSync(path.join(newFolder, textOnly.id, '聊天记录.xlsx')).size > 0);
+  assert.ok((await post('archives')).archives.some(record => record.id === id));
   assert.match(textOnlyReader, /未选择导出语音/);
   assert.match(textOnlyReader, /未选择保存文件/);
   assert.match(textOnlyReader, /未选择保存视频/);
@@ -434,5 +471,5 @@ test('export and transcribe a synthetic chat through the local API', { timeout: 
   await post('export', { session: 'fixture', images: true, voices: false });
   const withoutPictures = await complete();
   assert.match(withoutPictures.message, /已保存 0 张图片，2 张没能保存/);
-  assert.match(fs.readFileSync(path.join(directory, 'exports', withoutPictures.id, '完整聊天记录.html'), 'utf8'), /&lt;script&gt;alert/);
+  assert.match(fs.readFileSync(path.join(newFolder, withoutPictures.id, '完整聊天记录.html'), 'utf8'), /&lt;script&gt;alert/);
 });

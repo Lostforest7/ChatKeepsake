@@ -9,6 +9,7 @@ const { mediaFile, attachmentFile, imageExtensions, voiceExtensions, videoExtens
 const { repairVoices } = require('./repair-voices');
 const { repairVideos } = require('./repair-videos');
 const { saveAttachments } = require('./save-attachments');
+const { excelBytes, excelFile } = require('./export-excel');
 
 const readerFile = '完整聊天记录.html';
 const jsonFile = '聊天记录.json';
@@ -30,20 +31,6 @@ function validDate(value) {
 
 function readJson(file) {
   return JSON.parse(fs.readFileSync(file, 'utf8'));
-}
-
-function writeFile(file, content) {
-  const temporary = file + '.' + crypto.randomBytes(6).toString('hex') + '.tmp';
-  try {
-    fs.writeFileSync(temporary, content, { encoding: 'utf8', flag: 'wx' });
-    fs.renameSync(temporary, file);
-  } finally {
-    fs.rmSync(temporary, { force: true });
-  }
-}
-
-function writeJson(file, value) {
-  writeFile(file, JSON.stringify(value, null, 2) + '\n');
 }
 
 function tally(directory, messages) {
@@ -70,7 +57,7 @@ function tally(directory, messages) {
   return counts;
 }
 
-function writeArchive(directory, document, manifest) {
+async function writeArchive(directory, document, manifest) {
   const lines = document.messages.map(message => {
     let body = String(message.content ?? '');
     if (message.localType === messageType.image) {
@@ -94,18 +81,64 @@ function writeArchive(directory, document, manifest) {
     if (link) body = '[链接] ' + link.title + '\n' + link.url;
     return (message.formattedTime || '') + ' ' + sender(message) + '\n' + body;
   });
-  writeFile(path.join(directory, readerFile), renderViewer(directory, document, manifest));
-  writeFile(path.join(directory, '聊天记录.txt'), lines.join('\n\n') + '\n');
-  writeJson(path.join(directory, jsonFile), document);
-  writeJson(path.join(directory, manifestFile), manifest);
+  const workbook = await excelBytes(directory, document.messages);
+  commitFiles(directory, [
+    [excelFile, workbook],
+    [readerFile, renderViewer(directory, document, manifest)],
+    ['聊天记录.txt', lines.join('\n\n') + '\n'],
+    [jsonFile, JSON.stringify(document, null, 2) + '\n'],
+    [manifestFile, JSON.stringify(manifest, null, 2) + '\n']
+  ]);
+}
+
+// Prepare every replacement first. If an open reader or workbook prevents a
+// rename, restore the originals before reporting the error.
+function commitFiles(directory, files) {
+  const suffix = '.' + crypto.randomBytes(6).toString('hex');
+  const staged = [];
+  try {
+    for (const [name, content] of files) {
+      const target = path.join(directory, name);
+      const entry = { target, temporary: target + suffix + '.tmp', backup: target + suffix + '.bak' };
+      staged.push(entry);
+      fs.writeFileSync(entry.temporary, content, { flag: 'wx' });
+    }
+    for (const entry of staged) {
+      try {
+        if (!fs.lstatSync(entry.target).isFile()) throw new Error('导出文件位置已有同名目录或链接。');
+        fs.renameSync(entry.target, entry.backup);
+        entry.original = true;
+      } catch (error) {
+        if (error.code !== 'ENOENT') throw error;
+      }
+      fs.renameSync(entry.temporary, entry.target);
+      entry.replaced = true;
+    }
+  } catch (error) {
+    for (const entry of staged.slice().reverse()) {
+      if (entry.replaced) fs.rmSync(entry.target, { force: true });
+      if (entry.original) fs.renameSync(entry.backup, entry.target);
+    }
+    if (['EACCES', 'EPERM', 'EBUSY'].includes(error.code)) {
+      throw new Error('无法更新聊天文件。请关闭已打开的 Excel 或其他导出文件，再重试。', { cause: error });
+    }
+    throw error;
+  } finally {
+    for (const entry of staged) {
+      fs.rmSync(entry.temporary, { force: true });
+    }
+  }
+  for (const entry of staged) {
+    if (entry.original) fs.rmSync(entry.backup, { force: true });
+  }
 }
 
 function createArchives(exportsDirectory) {
   function get(id) {
     if (typeof id !== 'string' || !archiveId.test(id)) throw new Error('请选择已完成的导出记录。');
     try {
-      const directory = fs.realpathSync(path.join(exportsDirectory, id));
-      if (path.relative(fs.realpathSync(exportsDirectory), directory) !== id) throw new Error('Invalid archive path');
+      const directory = fs.realpathSync.native(path.join(exportsDirectory, id));
+      if (path.relative(fs.realpathSync.native(exportsDirectory), directory) !== id) throw new Error('Invalid archive path');
       const manifest = readJson(path.join(directory, manifestFile));
       const totalMessages = manifest?.counts?.messages;
       if (manifest?.schema !== 1 || manifest.id !== id ||
@@ -132,7 +165,8 @@ function createArchives(exportsDirectory) {
 
   async function exportChat(options, backend, progress) {
     const { session, start, end, images, voices, files = false, videos = false } = options;
-    const draft = fs.mkdtempSync(path.join(exportsDirectory, '.pending-'));
+    const base = fs.realpathSync.native(exportsDirectory);
+    const draft = fs.mkdtempSync(path.join(base, '.pending-'));
     const args = ['export', 'messages', session, '--out', draft, '--format', 'json', '--progress'];
     const media = [images && 'image', voices && 'voice', videos && 'video'].filter(Boolean);
     if (media.length) args.push('--media', media.join(','));
@@ -178,18 +212,36 @@ function createArchives(exportsDirectory) {
         schema: 1, id, createdAt: now, name: document.session?.displayName || session,
         start, end, images, voices, files, videos, counts: tally(draft, document.messages)
       };
-      writeArchive(draft, document, manifest);
+      await writeArchive(draft, document, manifest);
       fs.unlinkSync(source);
-      fs.renameSync(draft, path.join(exportsDirectory, id));
+      fs.renameSync(draft, path.join(base, id));
       completed = true;
       return manifest;
     } finally {
-      // draft comes from mkdtempSync in this call, and is never a user-selected path.
-      if (!completed) fs.rmSync(draft, { recursive: true, force: true });
+      if (!completed) {
+        try {
+          if (fs.realpathSync.native(draft) === draft && fs.lstatSync(draft).isDirectory()) {
+            fs.rmSync(draft, { recursive: true, force: true });
+          }
+        } catch {
+          // A disconnected drive can leave an incomplete folder, which list() skips.
+        }
+      }
     }
   }
 
-  function applyTranscripts(id) {
+  async function saveExcel(id) {
+    const { directory } = get(id);
+    const file = path.join(directory, excelFile);
+    try { if (fs.lstatSync(file).isFile()) return file; }
+    catch (error) { if (error.code !== 'ENOENT') throw error; }
+    const { messages } = readJson(path.join(directory, jsonFile));
+    if (!Array.isArray(messages) || !messages.length) throw new Error('找不到这段聊天的消息，无法生成 Excel。');
+    commitFiles(directory, [[excelFile, await excelBytes(directory, messages)]]);
+    return file;
+  }
+
+  async function applyTranscripts(id) {
     const { directory, manifest } = get(id);
     const document = readJson(path.join(directory, jsonFile));
     const transcripts = readJson(path.join(directory, transcriptFile));
@@ -207,11 +259,11 @@ function createArchives(exportsDirectory) {
       else if (audio) unsuccessful++;
     }
     manifest.transcription = { recognized, unsuccessful, language: transcripts.language };
-    writeArchive(directory, document, manifest);
+    await writeArchive(directory, document, manifest);
     return manifest.transcription;
   }
 
-  return { get, list, exportChat, applyTranscripts };
+  return { get, list, exportChat, saveExcel, applyTranscripts };
 }
 
 module.exports = { createArchives, validId, validDate, readerFile, jsonFile, transcriptFile };

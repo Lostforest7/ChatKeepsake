@@ -15,9 +15,10 @@ const { mediaFile, voiceExtensions } = require('./media');
 const { renderViewer } = require('./make-viewer');
 const { discoverWeChatAccounts } = require('./discover-wechat');
 const { createVoiceRuntime } = require('./voice-runtime');
+const { createSaveLocation, chooseSaveFolder } = require('./save-location');
 
 const root = __dirname;
-const apiVersion = 7;
+const apiVersion = 8;
 const demoDir = path.join(root, 'demo');
 const defaultDataDirectory = path.join(process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local'), 'ChatKeepsake');
 const staticFiles = new Map([
@@ -84,13 +85,13 @@ function createServer({
   backend = createWeFlow(dataDirectory),
   voiceRuntime = createVoiceRuntime(dataDirectory),
   openPath = launchExplorer,
+  chooseFolder = chooseSaveFolder,
   transcribeProcess = runProcess,
   findAccounts = discoverWeChatAccounts
 } = {}) {
-  const exportsDirectory = path.join(dataDirectory, 'exports');
   const lastConnectionFile = path.join(dataDirectory, 'last-connected.json');
-  fs.mkdirSync(exportsDirectory, { recursive: true });
-  const archives = createArchives(exportsDirectory);
+  fs.mkdirSync(path.join(dataDirectory, 'exports'), { recursive: true });
+  const saveLocation = createSaveLocation(dataDirectory);
   const token = crypto.randomBytes(32).toString('hex');
   let activity = { state: 'idle' };
   let handlingAction = false;
@@ -210,6 +211,7 @@ function createServer({
       if (!validDate(start) || !validDate(end) || (start && end && start > end)) throw new Error('请检查日期，开始日期要在结束日期之前或同一天。');
       if ([images, voices, files, videos].some(value => typeof value !== 'boolean')) throw new Error('请确认要一起保存哪些内容。');
       if (!backend.isInstalled()) throw new Error('请先在第 1 步安装助手。');
+      const archives = createArchives(saveLocation.ready());
       return begin('export', '正在保存聊天。请保持启动窗口打开。', async progress => {
         const record = await archives.exportChat({ session, start, end, images, voices, files, videos }, backend, progress);
         const counts = record.counts;
@@ -223,7 +225,7 @@ function createServer({
     }
 
     if (route === '/api/transcribe') {
-      const { directory, manifest } = archives.get(body.id);
+      const { directory, manifest, archives } = saveLocation.get(body.id);
       const { language = 'auto' } = body;
       if (!manifest.counts.voiceFiles) throw new Error('这段聊天没有保存到语音。');
       if (!['auto', 'zh', 'en'].includes(language)) throw new Error('请选择语音语言。');
@@ -245,7 +247,7 @@ function createServer({
           if (match) progress('正在本机转写语音，已处理 ' + match[1] + ' / ' + match[2] + ' 条。');
         });
         if (result.code !== 0) throw new Error('这次没能完成语音转文字。请检查语音文件是否还在，再试一次。');
-        const counts = archives.applyTranscripts(manifest.id);
+        const counts = await archives.applyTranscripts(manifest.id);
         const summary = '聊天已更新。' + counts.recognized + ' 条语音生成文字';
         return {
           id: manifest.id,
@@ -254,10 +256,16 @@ function createServer({
       });
     }
 
+    if (route === '/api/save-location') {
+      const directory = await chooseFolder(saveLocation.current);
+      if (!directory) return { exportsDirectory: saveLocation.current, cancelled: true };
+      return { exportsDirectory: saveLocation.select(directory), message: '保存位置已更新，下次导出会存到这里。' };
+    }
+
     if (route === '/api/open-exports') {
+      const directory = saveLocation.ready();
       try {
-        fs.mkdirSync(exportsDirectory, { recursive: true });
-        await openPath(exportsDirectory);
+        await openPath(directory);
       } catch {
         throw new Error('没能打开保存位置，请重试。');
       }
@@ -265,8 +273,14 @@ function createServer({
     }
 
     if (route === '/api/open') {
-      const { directory } = archives.get(body.id);
-      if (!['folder', 'reader'].includes(body.target)) throw new Error('请选择打开聊天记录或打开文件夹。');
+      const { directory, archives } = saveLocation.get(body.id);
+      if (body.target === 'excel') {
+        const workbook = await archives.saveExcel(body.id);
+        try { await openPath(workbook); }
+        catch { throw new Error('Excel 文件已保存，请点「打开文件夹」找到它。'); }
+        return { message: '已打开 Excel 文件。' };
+      }
+      if (!['folder', 'reader'].includes(body.target)) throw new Error('请选择要打开的文件。');
       const target = body.target === 'reader' ? path.join(directory, readerFile) : directory;
       if (!fs.existsSync(target)) throw new Error('聊天文件已移走。请看看原来的文件夹。');
       try { await openPath(target); } catch { throw new Error('没能打开文件。请在文件资源管理器里找到保存好的聊天。'); }
@@ -307,13 +321,12 @@ function createServer({
       return reply(response, 200, {
         apiVersion, supported: backend.supported, installed: backend.isInstalled(), version, archiveName, release, download,
         voiceReady: voiceRuntime.ready(), voiceSupported: voiceRuntime.supported, voiceDownloadMb: voiceRuntime.downloadMb,
-        exportsDirectory
+        exportsDirectory: saveLocation.current
       });
     }
     if (route === '/api/archives') {
       try {
-        const records = archives.list().map(record => ({ ...record, directory: path.join(exportsDirectory, record.id) }));
-        return reply(response, 200, { archives: records });
+        return reply(response, 200, { archives: saveLocation.list() });
       }
       catch { return reply(response, 400, { error: '没能找到保存好的聊天。请检查存放它们的文件夹是否还能打开。' }); }
     }

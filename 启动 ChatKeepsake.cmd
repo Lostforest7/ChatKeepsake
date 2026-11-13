@@ -8,6 +8,8 @@ if not exist "%~dp0server.js" goto incomplete
 
 node.exe -e "process.exit(Number(process.versions.node.split('.')[0]) >= 20 ? 0 : 1)" >nul 2>nul
 if not "%errorlevel%"=="0" goto source
+node.exe -e "require.resolve('write-excel-file/node')" >nul 2>nul
+if not "%errorlevel%"=="0" goto source
 set "CHATKEEPSAKE_NODE_EXE=node.exe"
 set "CHATKEEPSAKE_ENTRY=%~dp0server.js"
 goto launch

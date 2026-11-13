@@ -20,7 +20,7 @@
       <div>
         <p class="eyebrow">微信聊天保存工具</p>
         <h1>把微信聊天存成文件</h1>
-        <p class="lede">保存某个人或某个群的聊天。保存后可以搜索、看图、听语音。</p>
+        <p class="lede">把个人或群聊保存到电脑。支持网页（HTML）、Excel（.xlsx）、TXT 和 JSON，图片、语音、视频和聊天文件可一起保存。</p>
       </div>
       <div class="preview">
         <span class="eyebrow">想先看看效果？</span>
@@ -152,10 +152,12 @@
               </div>
             </div>
             <p id="archive-summary" class="hint">保存好以后，聊天就会出现在这里。</p>
+            <p id="archive-path" class="output-path" hidden></p>
             <p id="archive-image-help" class="hint" hidden>可以在电脑版微信打开没存下来的图片，再保存一次这段聊天。</p>
             <p id="archive-file-help" class="hint" hidden>可以在电脑版微信下载没存下来的文件或视频，再保存一次这段聊天。</p>
             <div class="actions">
               <button type="button" id="open-reader" disabled>打开聊天记录</button>
+              <button type="button" id="open-excel" class="secondary" disabled>打开 Excel</button>
               <button type="button" id="open-folder" class="secondary" disabled>打开文件夹</button>
             </div>
             <div id="voice-setup" class="voice-setup" hidden>
@@ -182,8 +184,11 @@
         <div class="status-heading"><h2>提示</h2><span class="status-dot" id="status-dot" data-kind="idle"></span></div>
         <p id="status" role="status" aria-atomic="true">正在打开工具。</p>
         <div class="save-location" id="save-location" hidden>
-          <h3>保存路径</h3>
+          <h3>新导出保存到</h3>
           <p id="output-path" class="output-path"></p>
+          <div class="actions">
+            <button type="button" id="change-location" class="secondary" aria-describedby="output-path" disabled>更改保存位置</button>
+          </div>
         </div>
       </aside>
     </div>

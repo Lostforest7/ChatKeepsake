@@ -1,8 +1,9 @@
 # 开发指南
 
-在 Windows x64 上安装 Node.js 24 LTS，在项目目录运行下面的命令。项目使用 Node.js 标准库，测试使用虚构聊天和模拟的助手输出。
+在 Windows x64 上安装 Node.js 24 LTS，在项目目录运行下面的命令。Excel 依赖锁定在 `package-lock.json`，测试使用虚构聊天和模拟的助手输出。
 
 ```powershell
+npm ci --ignore-scripts
 npm test
 npm start
 ```
@@ -22,7 +23,7 @@ npm start
 | 启动浏览器和复用已开的窗口 | [launcher.js](launcher.js) |
 | 页面调用的本机接口和任务进度 | [server.js](server.js) |
 | 查找微信数据目录、调用读取助手 | [discover-wechat.js](discover-wechat.js)、[weflow.js](weflow.js) |
-| 保存记录、统计媒体、写出 HTML、TXT 和 JSON | [archive.js](archive.js)、[chat-content.js](chat-content.js)、[media.js](media.js) |
+| 保存记录、设置保存位置、生成 Excel | [archive.js](archive.js)、[save-location.js](save-location.js)、[export-excel.js](export-excel.js) |
 | 离线阅读页的样式和搜索 | [viewer/reader.css](viewer/reader.css)、[viewer/search.js](viewer/search.js)、[make-viewer.js](make-viewer.js) |
 | 语音组件下载和离线转写 | [voice-runtime.js](voice-runtime.js)、[voice-assets.json](voice-assets.json)、[transcribe.py](transcribe.py) |
 | 下载校验和续传 | [download-assets.js](download-assets.js) |
@@ -38,7 +39,15 @@ npm start
 pwsh -NoProfile -File .\scripts\package-windows.ps1
 ```
 
-脚本从当前 Git 提交打包，校验官方 Windows x64 Node.js，并用 Windows 自带的 .NET Framework 编译器构建 `ChatKeepsake.exe`。已有 Node.js 官方 ZIP 时，可用 `-NodeArchive` 指定文件。启动器内嵌程序文件的 SHA-256 清单，每次启动时核对。
+脚本从当前 Git 提交打包，校验官方 Windows x64 Node.js，并按锁文件安装 Excel 依赖。已有 Node.js 官方 ZIP 时，可用 `-NodeArchive` 指定文件。
+
+当前 GitHub 免安装版使用 `-UseCommandLauncher` 打包，入口为 `启动 ChatKeepsake.cmd`。
+
+```powershell
+pwsh -NoProfile -File .\scripts\package-windows.ps1 -UseCommandLauncher
+```
+
+EXE 启动器由 Windows 自带的 .NET Framework 编译器构建。它内嵌程序文件的 SHA-256 清单，每次启动时核对。
 
 默认生成 `dist/ChatKeepsake-Windows-x64-unsigned.zip`，供本地测试。正式发布时，用 `-SignLauncher` 传入签名步骤。脚本会把启动器路径交给该步骤，验证通过后生成 `dist/ChatKeepsake-Windows-x64.zip`。下面的示例需要安装 Windows SDK 的 SignTool，并在签名环境中配置可用的可信代码签名证书。
 

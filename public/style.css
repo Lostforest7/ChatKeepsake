@@ -85,7 +85,9 @@ summary { cursor: pointer; color: var(--deep-green); font-weight: 650; }
 .status-dot[data-kind="error"] { background: #ad4033; }
 #status { margin-top: 7px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .save-location { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
+.save-location .actions { margin-top: 8px; }
 .output-path { font-size: 13px; color: var(--subtle); overflow-wrap: anywhere; }
+#archive-path { margin-bottom: 8px; }
 .voice-setup { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
 footer { color: var(--subtle); padding-block: 18px 30px; font-size: 13px; }
 footer a { margin-inline-start: 8px; color: var(--deep-green); }
