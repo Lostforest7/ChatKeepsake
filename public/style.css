@@ -46,7 +46,7 @@ fieldset { padding: 0; border: 0; min-width: 0; }
 .input-action > input, .input-action > select { flex: 1 1 0; min-width: 0; }
 .dates > .field { flex: 1 1 0; min-width: 0; }
 .field { display: grid; gap: 4px; margin-bottom: 10px; }
-.field label, .checks label { font-weight: 640; font-size: 14px; }
+.field label, .field-label, .checks label { font-weight: 640; font-size: 14px; }
 .field label .hint { margin-left: 3px; }
 input:not([type="checkbox"]), select {
   width: 100%; min-width: 0; height: 39px; padding: 7px 9px; color: var(--text);
@@ -70,6 +70,15 @@ p.hint { margin-block: 7px 8px; }
 details { margin-top: 12px; border-top: 1px solid var(--line); padding-top: 9px; font-size: 14px; }
 details p { margin-block: 6px 9px; color: var(--subtle); }
 summary { cursor: pointer; color: var(--deep-green); font-weight: 650; }
+#session-picker { margin: 0; padding: 0; border: 1px solid #9fb5a8; border-radius: 8px; }
+#session-summary { padding: 8px 10px; min-height: 39px; }
+#session { max-height: 244px; overflow-y: auto; padding: 4px 8px; border-top: 1px solid var(--line); }
+#session label {
+  display: flex; align-items: flex-start; gap: 7px; border-radius: 5px; padding: 6px 4px;
+  overflow-wrap: anywhere; cursor: pointer; font-weight: 500;
+}
+#session label:hover, #session label:has(:checked) { background: var(--mint); }
+#session input { margin-top: 4px; }
 .next-action { margin-top: 14px; padding: 12px 14px; background: var(--mint); border-radius: 10px; }
 .next-action h3 { font-size: 15px; }
 .next-action ol { padding-left: 22px; margin: 6px 0 10px; }

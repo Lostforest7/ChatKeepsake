@@ -4,8 +4,30 @@ const messageType = Object.freeze({
   image: 3,
   voice: 34,
   video: 43,
-  file: 6 * 2 ** 32 + 49
+  file: 6 * 2 ** 32 + 49,
+  transfer: 2000 * 2 ** 32 + 49,
+  redPacket: 2001 * 2 ** 32 + 49
 });
+
+function paymentKind(message) {
+  if (message.localType === messageType.transfer || message.type === '转账消息' || message.appMsgKind === 'transfer') return 'transfer';
+  if (message.localType === messageType.redPacket || message.type === '红包消息' || message.appMsgKind === 'red-packet') return 'red-packet';
+  return message.localType === 49 && typeof message.content === 'string' && /^\[红包\]/.test(message.content) ? 'red-packet' : null;
+}
+
+function yuan(amountFen) {
+  return (amountFen / 100).toFixed(2) + ' 元';
+}
+
+function paymentText(message) {
+  const payment = message.payment;
+  if (!payment) return '';
+  const label = payment.kind === 'transfer' ? '转账' : '红包';
+  const parts = [label, payment.amountFen == null ? '金额未记录' : yuan(payment.amountFen), payment.status];
+  if (payment.payer && payment.receiver) parts.push(payment.payer + ' → ' + payment.receiver);
+  if (payment.memo) parts.push(payment.memo);
+  return parts.join(' · ');
+}
 
 function isFileMessage(message) {
   return message.type === '文件消息' || message.appMsgKind === 'file' || message.localType === messageType.file;
@@ -45,4 +67,4 @@ function forwardedRecord(message) {
   };
 }
 
-module.exports = { messageType, isFileMessage, fileName, httpUrl, linkCard, forwardedRecord };
+module.exports = { messageType, paymentKind, paymentText, yuan, isFileMessage, fileName, httpUrl, linkCard, forwardedRecord };

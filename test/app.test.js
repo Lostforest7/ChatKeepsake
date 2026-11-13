@@ -12,8 +12,99 @@ const { test } = require('node:test');
 const { createServer } = require('../server');
 const { createWeFlow } = require('../weflow');
 const { discoverWeChatAccounts, configuredPaths } = require('../discover-wechat');
+const { paymentBackend, bob, group, missing, inaccessible } = require('../fixtures/payment');
 
 const demo = path.resolve(__dirname, '../demo');
+
+test('exports several chats and one ledger, preserves partial successes, and omits the ledger when disabled', async t => {
+  const directory = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'chatkeepsake-payments-')));
+  const backend = paymentBackend();
+  const opened = [];
+  const { server, token } = createServer({ dataDirectory: directory, backend, openPath: target => opened.push(target) });
+  server.listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  t.after(async () => {
+    server.closeAllConnections();
+    await new Promise(resolve => server.close(resolve));
+    assert.equal(path.dirname(directory), fs.realpathSync.native(os.tmpdir()));
+    fs.rmSync(directory, { recursive: true, force: true });
+  });
+  const base = 'http://127.0.0.1:' + server.address().port;
+  async function call(operation, body = {}, expected = 200) {
+    const response = await fetch(base + '/api/' + operation, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Origin: base, 'X-Local-Token': token },
+      body: JSON.stringify(body)
+    });
+    const result = await response.json();
+    assert.equal(response.status, expected, result.error);
+    return result;
+  }
+  async function complete() {
+    for (let attempt = 0; attempt < 50; attempt++) {
+      const job = await call('status');
+      if (job.state !== 'running') return job;
+      await delay(40);
+    }
+    assert.fail('Export did not finish');
+  }
+  const settings = { images: false, voices: false, payments: true, start: '2026-01-01', end: '2026-01-02' };
+  await call('export', { ...settings, sessions: [] }, 400);
+  await call('export', { ...settings, sessions: [bob, '../outside'] }, 400);
+  await call('export', { ...settings, sessions: [bob, group], payments: 'yes' }, 400);
+
+  await call('export', { ...settings, sessions: [bob, bob, group, missing, inaccessible] });
+  const result = await complete();
+  assert.equal(result.state, 'done', result.message);
+  assert.match(result.message, /已保存 2 段聊天。1 段在所选日期没有消息。1 段没能保存/);
+  assert.deepEqual(result.skipped, [missing, inaccessible]);
+  assert.deepEqual(backend.commands.filter(args => args[0] === 'export').map(args => args[2]), [bob, group, missing, inaccessible]);
+  assert.equal(backend.commands.filter(args => args[0] === 'config' && args[2] === 'wxid').length, 1);
+  const { archives } = await call('archives');
+  assert.deepEqual(archives.map(record => record.name).sort(), ['周末出游', '小林']);
+  const privateChat = archives.find(record => record.name === '小林');
+  const groupChat = archives.find(record => record.name === '周末出游');
+  assert.equal(privateChat.batch, groupChat.batch);
+  assert.equal(privateChat.ledger, true);
+  const batch = path.dirname(privateChat.directory);
+  const ledger = '转账与红包总账.xlsx';
+  assert.equal(fs.readFileSync(path.join(batch, ledger)).subarray(0, 2).toString(), 'PK');
+  assert.equal(fs.existsSync(path.join(privateChat.directory, ledger)), false);
+  const document = JSON.parse(fs.readFileSync(path.join(privateChat.directory, '聊天记录.json'), 'utf8'));
+  const payments = document.messages.filter(message => message.payment);
+  assert.deepEqual(payments.map(message => message.payment.amountFen), [1250, 1250, 1250, 123450, 123450, 234, 5000, 5000, 88, 168, null, 999]);
+  assert.equal(payments.at(-1).payment.status, '状态未确认');
+  assert.equal(payments[8].payment.receiver, '我');
+  assert.equal(payments[8].payment.memo, '周末快乐 & 顺利');
+  assert.equal(document.messages.at(-1).payment, undefined);
+  const html = fs.readFileSync(path.join(privateChat.directory, '完整聊天记录.html'), 'utf8');
+  assert.match(html, /红包 · 0\.88 元 · 已领取/);
+  assert.match(html, /红包 · 金额未记录/);
+  assert.doesNotMatch(html, /wxpay:\/\//);
+  const groupDoc = JSON.parse(fs.readFileSync(path.join(groupChat.directory, '聊天记录.json'), 'utf8'));
+  assert.equal(groupDoc.messages[2].payment.receiver, '我');
+  assert.equal(groupDoc.messages[4].payment, undefined, 'Split bills are excluded');
+  assert.equal(groupChat.payments, 4);
+  await call('open', { id: privateChat.id, batch: privateChat.batch, target: 'folder' });
+  assert.equal(opened.at(-1), privateChat.directory);
+  await call('open', { id: groupChat.id, batch: groupChat.batch, target: 'reader' });
+  assert.equal(opened.at(-1), path.join(groupChat.directory, '完整聊天记录.html'));
+  await call('open', { id: groupChat.id, batch: '../', target: 'reader' }, 400);
+
+  const lookups = backend.commands.filter(args => args[1] === 'message').length;
+  await call('export', { ...settings, sessions: [bob, group], payments: false });
+  const unchecked = await complete();
+  assert.equal(unchecked.state, 'done', unchecked.message);
+  const record = (await call('archives')).archives.find(item => item.id === unchecked.id);
+  assert.equal(record.ledger, false);
+  assert.equal(fs.existsSync(path.join(path.dirname(record.directory), ledger)), false);
+  assert.equal(backend.commands.filter(args => args[1] === 'message').length, lookups);
+
+  await call('export', { ...settings, sessions: [bob] });
+  const single = await complete();
+  assert.equal(single.state, 'done', single.message);
+  assert.ok(fs.existsSync(path.join(directory, 'exports', single.id, ledger)));
+});
 
 test('a clean install rejects an unknown component archive', async t => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'chatkeepsake-invalid-'));
@@ -313,7 +404,7 @@ test('export and transcribe a synthetic chat through the local API', { timeout: 
   assert.equal(info.voiceReady, false);
   assert.equal(info.voiceSupported, true);
   assert.equal(info.voiceDownloadMb, 600);
-  assert.equal(info.apiVersion, 8);
+  assert.equal(info.apiVersion, 9);
   assert.equal(info.exportsDirectory, path.join(directory, 'exports'));
   assert.equal(info.installed, false);
   assert.equal((await call('install-online', {}, { 'X-Local-Token': 'invalid' })).status, 403);
@@ -405,8 +496,8 @@ test('export and transcribe a synthetic chat through the local API', { timeout: 
 
   // Older archives have no workbook and can be updated from their saved JSON.
   fs.unlinkSync(excel);
-  await post('open', { id, target: 'excel' });
-  assert.equal(opened.at(-1), excel);
+  await post('open', { id, target: 'folder' });
+  assert.equal(opened.at(-1), output);
   const beforeTranscript = fs.readFileSync(excel);
   const newFolder = fs.realpathSync.native(customDirectory);
   assert.equal((await post('save-location', { directory: ' "' + customDirectory + '" ' })).exportsDirectory, newFolder);

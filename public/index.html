@@ -20,7 +20,7 @@
       <div>
         <p class="eyebrow">微信聊天保存工具</p>
         <h1>把微信聊天存成文件</h1>
-        <p class="lede">把个人或群聊保存到电脑。支持网页（HTML）、Excel（.xlsx）、TXT 和 JSON，图片、语音、视频和聊天文件可一起保存。</p>
+        <p class="lede">把个人或群聊保存到电脑，支持网页（HTML）、Excel（.xlsx）、TXT 和 JSON。可一起保存图片、语音、视频、文件、转账和红包记录。</p>
       </div>
       <div class="preview">
         <span class="eyebrow">想先看看效果？</span>
@@ -115,10 +115,13 @@
               </div>
             </div>
             <div class="field">
-              <label for="session">要保存的聊天</label>
-              <select id="session"><option value="">连上微信后才能选择</option></select>
+              <p class="field-label" id="session-label">要保存的聊天</p>
+              <details id="session-picker">
+                <summary id="session-summary" aria-labelledby="session-label session-summary">选择聊天（可多选）</summary>
+                <div id="session" role="group" aria-labelledby="session-label"></div>
+              </details>
             </div>
-            <p class="hint">日期都留空，就保存这段聊天的全部记录。</p>
+            <p class="hint">日期都留空，就保存选中聊天的全部记录。</p>
             <div class="dates">
               <div class="field"><label for="start">开始日期 <span class="hint">可留空</span></label><input type="date" id="start"></div>
               <div class="field"><label for="end">结束日期 <span class="hint">可留空</span></label><input type="date" id="end"></div>
@@ -128,8 +131,9 @@
               <label><input type="checkbox" id="voices" checked> 同时保存语音</label>
               <label><input type="checkbox" id="files" checked> 同时保存文件</label>
               <label><input type="checkbox" id="videos"> 同时保存视频</label>
+              <label><input type="checkbox" id="payments"> 同时保存转账与红包</label>
             </div>
-            <div class="actions"><button type="button" id="export" disabled>保存这段聊天</button></div>
+            <div class="actions"><button type="button" id="export" disabled>保存选中的聊天</button></div>
             <details>
               <summary>图片没保存下来？</summary>
               <p>工具会自动准备。还有图片没保存时，请在电脑版微信打开这些图片，然后再保存一次聊天。只在手机上能看到的图片，请先通过微信搬到电脑。</p>
@@ -153,11 +157,11 @@
             </div>
             <p id="archive-summary" class="hint">保存好以后，聊天就会出现在这里。</p>
             <p id="archive-path" class="output-path" hidden></p>
+            <p id="archive-ledger" class="hint" hidden></p>
             <p id="archive-image-help" class="hint" hidden>可以在电脑版微信打开没存下来的图片，再保存一次这段聊天。</p>
             <p id="archive-file-help" class="hint" hidden>可以在电脑版微信下载没存下来的文件或视频，再保存一次这段聊天。</p>
             <div class="actions">
               <button type="button" id="open-reader" disabled>打开聊天记录</button>
-              <button type="button" id="open-excel" class="secondary" disabled>打开 Excel</button>
               <button type="button" id="open-folder" class="secondary" disabled>打开文件夹</button>
             </div>
             <div id="voice-setup" class="voice-setup" hidden>
@@ -175,7 +179,7 @@
           </div>
           <div class="step-body">
             <button type="button" id="open-exports" class="secondary" disabled>打开保存位置</button>
-            <p class="hint">每次保存的聊天都有一个文件夹。要移动聊天，请把整个文件夹一起移动。</p>
+            <p class="hint">每段聊天都有一个文件夹。要移动聊天，请把整个文件夹一起移动。</p>
           </div>
         </section>
       </main>

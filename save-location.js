@@ -81,18 +81,18 @@ function createSaveLocation(dataDirectory) {
         continue;
       }
       for (const record of archives) {
-        if (!records.has(record.id)) records.set(record.id, { ...record, directory: path.join(canonical, record.id) });
+        if (!records.has(record.id)) records.set(record.id, record);
       }
     }
     return [...records.values()].sort((a, b) => b.id.localeCompare(a.id));
   }
 
-  function get(id) {
+  function get(id, batch = '') {
     if (typeof id !== 'string') throw new Error('请选择已完成的导出记录。');
     for (const folder of folders) {
       try {
         const archives = createArchives(resolveFolder(folder));
-        return { ...archives.get(id), archives };
+        return { ...archives.get(id, batch), archives };
       } catch {
         // The folder may have moved or the drive may be disconnected.
       }

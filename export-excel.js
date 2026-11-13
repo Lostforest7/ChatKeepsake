@@ -1,6 +1,6 @@
 'use strict';
 
-const { messageType, isFileMessage, fileName, linkCard, forwardedRecord } = require('./chat-content');
+const { messageType, paymentText, isFileMessage, fileName, linkCard, forwardedRecord } = require('./chat-content');
 const { mediaFile, attachmentFile, imageExtensions, voiceExtensions, videoExtensions } = require('./media');
 const { sender } = require('./make-viewer');
 
@@ -28,7 +28,10 @@ function row(directory, message) {
   let text = message.content;
   let attachment = '';
   const media = mediaTypes.get(message.localType);
-  if (media) {
+  if (message.payment) {
+    type = message.payment.kind === 'transfer' ? '转账' : '红包';
+    text = paymentText(message);
+  } else if (media) {
     const [label, extensions] = media;
     type = label;
     attachment = mediaFile(directory, message.content, extensions)?.name || '';
@@ -46,17 +49,21 @@ function row(directory, message) {
   return [message.formattedTime, sender(message), type, text, attachment, message.voiceTranscript].map(cell);
 }
 
-async function excelBytes(directory, messages) {
+function workbookSheets(name, headings, columns, records, buildRow) {
   const header = headings.map(value => ({ value, fontWeight: 'bold', color: '#FFFFFF', backgroundColor: '#276447' }));
   const sheets = [];
-  for (let offset = 0; offset < messages.length; offset += rowsPerSheet) {
-    const sheet = messages.length > rowsPerSheet ? '聊天记录 ' + (sheets.length + 1) : '聊天记录';
+  for (let offset = 0; offset < Math.max(1, records.length); offset += rowsPerSheet) {
+    const sheet = records.length > rowsPerSheet ? name + ' ' + (sheets.length + 1) : name;
     const data = [header];
-    for (let index = offset; index < Math.min(offset + rowsPerSheet, messages.length); index++) {
-      data.push(row(directory, messages[index]));
+    for (let index = offset; index < Math.min(offset + rowsPerSheet, records.length); index++) {
+      data.push(buildRow(records[index]));
     }
     sheets.push({ sheet, columns, data, stickyRowsCount: 1 });
   }
+  return sheets;
+}
+
+async function workbookBytes(sheets) {
   try {
     const writeExcelFile = require('write-excel-file/node');
     return await writeExcelFile(sheets, { fontFamily: 'Microsoft YaHei', fontSize: 11 }).toBuffer();
@@ -65,4 +72,8 @@ async function excelBytes(directory, messages) {
   }
 }
 
-module.exports = { excelBytes, excelFile };
+function excelBytes(directory, messages) {
+  return workbookBytes(workbookSheets('聊天记录', headings, columns, messages, message => row(directory, message)));
+}
+
+module.exports = { excelBytes, excelFile, cell, workbookSheets, workbookBytes };

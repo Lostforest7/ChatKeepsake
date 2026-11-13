@@ -16,9 +16,10 @@ const { renderViewer } = require('./make-viewer');
 const { discoverWeChatAccounts } = require('./discover-wechat');
 const { createVoiceRuntime } = require('./voice-runtime');
 const { createSaveLocation } = require('./save-location');
+const { ledgerFile } = require('./payment-ledger');
 
 const root = __dirname;
-const apiVersion = 8;
+const apiVersion = 9;
 const demoDir = path.join(root, 'demo');
 const defaultDataDirectory = path.join(process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local'), 'ChatKeepsake');
 const staticFiles = new Map([
@@ -205,26 +206,42 @@ function createServer({
     }
 
     if (route === '/api/export') {
-      const { session, start = '', end = '', images, voices, files = false, videos = false } = body;
-      if (!validId(session)) throw new Error('请先选一个人或群。');
+      const { start = '', end = '', images, voices, files = false, videos = false, payments = false } = body;
+      const chosen = body.sessions ?? [body.session];
+      if (!Array.isArray(chosen) || !chosen.length || !chosen.every(validId)) throw new Error('请先选至少一个人或群。');
+      const sessions = [...new Set(chosen)];
       if (!validDate(start) || !validDate(end) || (start && end && start > end)) throw new Error('请检查日期，开始日期要在结束日期之前或同一天。');
-      if ([images, voices, files, videos].some(value => typeof value !== 'boolean')) throw new Error('请确认要一起保存哪些内容。');
+      if ([images, voices, files, videos, payments].some(value => typeof value !== 'boolean')) throw new Error('请确认要一起保存哪些内容。');
       if (!backend.isInstalled()) throw new Error('请先在第 1 步安装助手。');
       const archives = createArchives(saveLocation.ready());
+      const options = { start, end, images, voices, files, videos, payments };
       return begin('export', '正在保存聊天。请保持启动窗口打开。', async progress => {
-        const record = await archives.exportChat({ session, start, end, images, voices, files, videos }, backend, progress);
+        if (sessions.length > 1) {
+          const { records, skipped } = await archives.exportBatch(sessions, options, backend, progress);
+          const empty = skipped.filter(item => item.empty).length;
+          const failed = skipped.length - empty;
+          const summary = [
+            '已保存 ' + records.length + ' 段聊天。',
+            empty ? empty + ' 段在所选日期没有消息。' : '',
+            failed ? failed + ' 段没能保存，请检查微信连接和保存位置后重试。' : '',
+            payments ? '已生成「' + ledgerFile + '」。' : ''
+          ].join('');
+          return { id: records[0].id, skipped: skipped.map(item => item.session), message: summary + '去第 3 步查看。' };
+        }
+        const record = await archives.exportChat({ session: sessions[0], ...options }, backend, progress);
         const counts = record.counts;
         const details = [
           images && mediaSummary(counts.images, counts.imageFiles, '张', '图片'),
           files && mediaSummary(counts.files, counts.savedFiles, '个', '文件'),
           videos && mediaSummary(counts.videos, counts.videoFiles, '个', '视频')
         ].filter(Boolean).join('');
-        return { id: record.id, message: '聊天已保存。' + details + '去第 3 步点「打开聊天记录」。' };
+        const ledger = payments ? '已生成「' + ledgerFile + '」。' : '';
+        return { id: record.id, message: '聊天已保存。' + details + ledger + '去第 3 步查看。' };
       });
     }
 
     if (route === '/api/transcribe') {
-      const { directory, manifest, archives } = saveLocation.get(body.id);
+      const { directory, manifest, archives, batch } = saveLocation.get(body.id, body.batch);
       const { language = 'auto' } = body;
       if (!manifest.counts.voiceFiles) throw new Error('这段聊天没有保存到语音。');
       if (!['auto', 'zh', 'en'].includes(language)) throw new Error('请选择语音语言。');
@@ -246,7 +263,7 @@ function createServer({
           if (match) progress('正在本机转写语音，已处理 ' + match[1] + ' / ' + match[2] + ' 条。');
         });
         if (result.code !== 0) throw new Error('这次没能完成语音转文字。请检查语音文件是否还在，再试一次。');
-        const counts = await archives.applyTranscripts(manifest.id);
+        const counts = await archives.applyTranscripts(manifest.id, batch);
         const summary = '聊天已更新。' + counts.recognized + ' 条语音生成文字';
         return {
           id: manifest.id,
@@ -270,18 +287,23 @@ function createServer({
     }
 
     if (route === '/api/open') {
-      const { directory, archives } = saveLocation.get(body.id);
+      const { directory, archives, batch } = saveLocation.get(body.id, body.batch);
       if (body.target === 'excel') {
-        const workbook = await archives.saveExcel(body.id);
+        const workbook = await archives.saveExcel(body.id, batch);
         try { await openPath(workbook); }
         catch { throw new Error('Excel 文件已保存，请点「打开文件夹」找到它。'); }
         return { message: '已打开 Excel 文件。' };
       }
       if (!['folder', 'reader'].includes(body.target)) throw new Error('请选择要打开的文件。');
+      let excelMissing = false;
+      if (body.target === 'folder') {
+        try { await archives.saveExcel(body.id, batch); }
+        catch { excelMissing = true; }
+      }
       const target = body.target === 'reader' ? path.join(directory, readerFile) : directory;
       if (!fs.existsSync(target)) throw new Error('聊天文件已移走。请看看原来的文件夹。');
       try { await openPath(target); } catch { throw new Error('没能打开文件。请在文件资源管理器里找到保存好的聊天。'); }
-      return { message: '已在电脑上打开。' };
+      return { message: excelMissing ? '已打开文件夹。旧记录的 Excel 没能生成，可以重新保存这段聊天。' : '已在电脑上打开。' };
     }
 
     return null;
@@ -337,7 +359,7 @@ function createServer({
         return reply(response, 200, activity);
       }
       if (request.headers['content-type'] !== 'application/json') throw new Error('请求格式错误。');
-      const body = JSON.parse(await readBody(request, 16000));
+      const body = JSON.parse(await readBody(request, route === '/api/export' ? 256 * 1024 : 16000));
       if (!body || typeof body !== 'object' || Array.isArray(body)) throw new Error('请求格式错误。');
       const result = await action(route, body);
       if (!result) return reply(response, 404, { error: '找不到该操作。' });

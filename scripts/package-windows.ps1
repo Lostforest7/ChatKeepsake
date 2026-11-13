@@ -24,9 +24,9 @@ $archiveName = if ($SignLauncher -or $UseCommandLauncher) { 'ChatKeepsake-Window
 
 # Package only committed application files. Local exports and installed helpers stay out of the ZIP.
 $appFiles = @(
-  'LICENSE', 'PRIVACY.md', 'THIRD_PARTY_NOTICES.md', 'package.json', 'package-lock.json',
-  'archive.js', 'chat-content.js', 'discover-wechat.js', 'download-assets.js',
-  'export-excel.js', 'launcher.js', 'make-viewer.js', 'media.js', 'repair-videos.js', 'repair-voices.js',
+  'LICENSE', 'licenses', 'PRIVACY.md', 'THIRD_PARTY_NOTICES.md', 'package.json', 'package-lock.json',
+  'archive.js', 'chat-content.js', 'chat-payments.js', 'discover-wechat.js', 'download-assets.js',
+  'export-excel.js', 'launcher.js', 'make-viewer.js', 'media.js', 'payment-ledger.js', 'repair-videos.js', 'repair-voices.js',
   'run-process.js', 'save-attachments.js', 'save-location.js', 'server.js', 'transcribe.py',
   'voice-assets.json', 'voice-runtime.js', 'weflow.js',
   'public', 'viewer', 'demo', 'scripts/wechat-open-databases.ps1'
@@ -63,7 +63,7 @@ try {
   [IO.Compression.ZipFile]::ExtractToDirectory($sourceArchive, $app)
 
   npm.cmd ci --prefix $app --omit=dev --ignore-scripts --no-bin-links --no-audit --no-fund
-  if ($LASTEXITCODE -ne 0) { throw 'Could not install the locked Excel dependencies.' }
+  if ($LASTEXITCODE -ne 0) { throw 'Could not install the locked dependencies.' }
 
   if ($UseCommandLauncher) {
     $sourceLauncher = Join-Path $app $commandLauncher

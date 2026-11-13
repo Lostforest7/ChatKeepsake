@@ -3,7 +3,7 @@
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
-const { messageType, isFileMessage, fileName, httpUrl, linkCard, forwardedRecord } = require('./chat-content');
+const { messageType, paymentText, isFileMessage, fileName, httpUrl, linkCard, forwardedRecord } = require('./chat-content');
 const { mediaFile, attachmentFile, imageExtensions, voiceExtensions, videoExtensions } = require('./media');
 
 const viewerAssets = path.join(__dirname, 'viewer');
@@ -47,6 +47,7 @@ function renderFile(directory, message, options) {
 }
 
 function renderBody(directory, message, options) {
+  if (message.payment) return '<div class="content">' + escapeHtml(paymentText(message)) + '</div>';
   if (message.localType === messageType.image) {
     const image = mediaFile(directory, message.content, imageExtensions);
     return image

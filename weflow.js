@@ -105,22 +105,29 @@ function createWeFlow(dataDirectory) {
     let response;
     try { response = JSON.parse(result.stdout); } catch { return { ok: false, code: 'no_response' }; }
     const code = response.error?.code;
+    const emptyExport = args[0] === 'export' && args[1] === 'messages' &&
+      ['no messages found for this session in the given range', '指定范围内未找到该会话的消息'].includes(response.error?.message);
     return {
       ok: result.code === 0 && response.success === true,
       data: response.success === true ? response.data : undefined,
-      code: typeof code === 'string' && /^[a-z_]{1,60}$/.test(code) ? code : 'backend_error'
+      code: emptyExport ? 'no_messages' : (typeof code === 'string' && /^[a-z_]{1,60}$/.test(code) ? code : 'backend_error')
     };
   }
 
   return { supported, isInstalled, install, installOnline, run };
 }
 
-async function lookupMessage(backend, session, message) {
+async function lookupMessage(backend, session, message, { parsed = true } = {}) {
   const id = String(message.platformMessageId ?? '');
   const time = message.createTime;
   if (!/^[1-9]\d{0,19}$/.test(id) || !Number.isSafeInteger(time) || time <= 0) return null;
-  const result = await backend.run(['chat', 'message', session, '--server-id', id, '--parsed']);
-  return result.ok && result.data?.createTime === time ? result.data : null;
+  const args = ['chat', 'message', session, '--server-id', id];
+  if (parsed) args.push('--parsed');
+  const result = await backend.run(args);
+  const found = parsed ? result.data : result.data?.message;
+  if (!result.ok || found?.createTime !== time) return null;
+  if (!parsed && (String(found.serverId) !== id || found.localType !== message.localType)) return null;
+  return found;
 }
 
 module.exports = { createWeFlow, lookupMessage, version, archiveName, release, download, maxArchiveSize };

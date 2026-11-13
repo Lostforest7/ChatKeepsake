@@ -10,6 +10,7 @@ if (tokenFromAddress) {
 
 let environment = {};
 let sessions = [];
+const selectedSessions = new Set();
 let records = [];
 let locations = [];
 let lastConnected = '';
@@ -70,14 +71,13 @@ function updateControls() {
   $('connect-next').hidden = !setupNeeded;
   $('export-fields').hidden = !connected;
   $('export-fields').disabled = busy || !connected;
-  $('export-help').textContent = connected ? '选一个人或群，再点「保存这段聊天」。' : '连上微信后，这里会显示你聊过的人和群。';
+  $('export-help').textContent = connected ? '勾选想保存的人或群，再点「保存选中的聊天」。' : '连上微信后，这里会显示你聊过的人和群。';
   $('save-account').disabled = !$('account').value;
-  $('export').disabled = !$('session').value;
+  $('export').disabled = busy || !selectedSessions.size;
   $('archive').disabled = busy || records.length === 0;
   $('saved-controls').hidden = records.length === 0;
   $('refresh').disabled = busy;
   $('open-reader').disabled = busy || !selected;
-  $('open-excel').disabled = busy || !selected;
   $('open-folder').disabled = busy || !selected;
   $('open-exports').disabled = busy || !environment.exportsDirectory;
   $('change-location').disabled = busy || !environment.exportsDirectory;
@@ -98,7 +98,7 @@ function updateControls() {
 
 async function loadEnvironment() {
   const info = await call('info');
-  if (info.apiVersion !== 8) {
+  if (info.apiVersion !== 9) {
     throw new Error('旧版 ChatKeepsake 还在运行。请关闭原来的启动窗口，再从文件夹打开工具。');
   }
   environment = info;
@@ -114,15 +114,34 @@ function setOptions(select, entries, placeholder, preferred = '') {
 
 function renderSessions() {
   const query = $('search').value.trim().toLowerCase();
-  const previous = $('session').value;
-  const matches = sessions.filter(session => (session.name + ' ' + session.id).toLowerCase().includes(query));
+  const matches = sessions.filter(session => (session.name + ' ' + session.id).toLowerCase().includes(query) ||
+    selectedSessions.has(session.id));
   const names = new Map();
-  for (const session of matches) names.set(session.name, (names.get(session.name) || 0) + 1);
-  setOptions($('session'), matches.map(session => ({
-    id: session.id,
-    name: names.get(session.name) > 1 ? session.name + '（' + session.id + '）' : session.name
-  })), matches.length ? '请选择一个人或群' : (connected ? '没有找到匹配的聊天' : '连上微信后才能选择'), previous);
-  if (matches.length === 1 && !$('session').value) $('session').value = matches[0].id;
+  for (const session of sessions) names.set(session.name, (names.get(session.name) || 0) + 1);
+  const list = document.createDocumentFragment();
+  for (const { id, name } of matches) {
+    const label = document.createElement('label');
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.value = id;
+    input.checked = selectedSessions.has(id);
+    const text = document.createElement('span');
+    text.textContent = names.get(name) > 1 ? name + '（' + id + '）' : name;
+    label.append(input, text);
+    list.append(label);
+  }
+  if (!matches.length) {
+    const empty = document.createElement('p');
+    empty.className = 'hint';
+    empty.textContent = '没有找到匹配的聊天。';
+    list.append(empty);
+  }
+  $('session').replaceChildren(list);
+  updateSessionSummary();
+}
+
+function updateSessionSummary() {
+  $('session-summary').textContent = selectedSessions.size ? '已选 ' + selectedSessions.size + ' 段聊天' : '选择聊天（可多选）';
   updateControls();
 }
 
@@ -130,6 +149,10 @@ function renderRecord() {
   const record = selectedRecord();
   $('archive-path').hidden = !record?.directory;
   $('archive-path').textContent = record?.directory || '';
+  $('archive-ledger').hidden = !(record?.ledger || Number.isSafeInteger(record?.payments));
+  $('archive-ledger').textContent = record?.batch
+    ? '点「打开文件夹」，转账与红包总账在上一级文件夹。'
+    : '转账与红包总账在这段聊天的文件夹里。';
   const missingImages = record?.images ? record.counts.images - record.counts.imageFiles : 0;
   $('archive-image-help').hidden = missingImages <= 0;
   $('archive-file-help').hidden = true;
@@ -188,6 +211,15 @@ async function track(job) {
   } else if (job.kind === 'key' && job.state === 'done') {
     await checkConnection();
   } else if (job.id) {
+    if (job.kind === 'export' && Array.isArray(job.skipped) && job.skipped.length) {
+      const missed = new Set(job.skipped);
+      for (const id of selectedSessions) {
+        if (!missed.has(id)) selectedSessions.delete(id);
+      }
+      const names = sessions.filter(item => missed.has(item.id)).map(item => item.name);
+      if (names.length) notice(job.message + '\n未保存 · ' + names.join('、'), job.state);
+      renderSessions();
+    }
     await refreshRecords(job.id);
     if (job.kind === 'export' && job.state === 'done') $('archives-title').scrollIntoView({ block: 'nearest' });
   }
@@ -287,6 +319,7 @@ async function useWeChat(selection) {
   connected = false;
   setupNeeded = false;
   sessions = [];
+  selectedSessions.clear();
   $('search').value = '';
   renderSessions();
   notice('正在连接你选择的微信。', 'running');
@@ -327,17 +360,30 @@ async function checkConnection() {
 async function loadSessions() {
   notice('正在找你聊过的人和群。', 'running');
   sessions = (await call('sessions')).sessions;
+  const available = new Set(sessions.map(item => item.id));
+  for (const id of selectedSessions) {
+    if (!available.has(id)) selectedSessions.delete(id);
+  }
   renderSessions();
-  notice(sessions.length ? '微信已连上。现在可以选一段聊天保存。' : '微信已连上，但这台电脑上还没有聊天记录。', 'done');
+  notice(sessions.length ? '微信已连上。现在可以勾选要保存的聊天。' : '微信已连上，但这台电脑上还没有聊天记录。', 'done');
 }
 
 bind('test', checkConnection);
 bind('sessions', loadSessions);
-$('search').addEventListener('input', renderSessions);
-$('session').addEventListener('change', updateControls);
+$('search').addEventListener('input', () => {
+  $('session-picker').open = true;
+  renderSessions();
+});
+$('session').addEventListener('change', event => {
+  const { value, checked } = event.target;
+  if (checked) selectedSessions.add(value);
+  else selectedSessions.delete(value);
+  updateSessionSummary();
+});
 bind('export', async () => track(await call('export', {
-  session: $('session').value, start: $('start').value, end: $('end').value,
-  images: $('images').checked, voices: $('voices').checked, files: $('files').checked, videos: $('videos').checked
+  sessions: [...selectedSessions], start: $('start').value, end: $('end').value,
+  images: $('images').checked, voices: $('voices').checked, files: $('files').checked, videos: $('videos').checked,
+  payments: $('payments').checked
 })));
 
 $('archive').addEventListener('change', renderRecord);
@@ -377,14 +423,17 @@ bind('open-exports', async () => {
   const result = await call('open-exports');
   notice(result.message, 'done');
 });
-for (const target of ['reader', 'excel', 'folder']) {
+for (const target of ['reader', 'folder']) {
   bind('open-' + target, async () => {
-    if (target === 'excel') notice('正在准备 Excel 文件。', 'running');
-    const result = await call('open', { id: $('archive').value, target });
+    const record = selectedRecord();
+    const result = await call('open', { id: record.id, batch: record.batch, target });
     notice(result.message, 'done');
   });
 }
-bind('transcribe', async () => track(await call('transcribe', { id: $('archive').value, language: $('language').value })));
+bind('transcribe', async () => {
+  const record = selectedRecord();
+  await track(await call('transcribe', { id: record.id, batch: record.batch, language: $('language').value }));
+});
 
 perform(async () => {
   await loadEnvironment();

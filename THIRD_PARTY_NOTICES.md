@@ -8,6 +8,10 @@ Windows 免安装版包含 [Node.js 官方发布的 Windows x64 运行文件](ht
 
 [write-excel-file 4.1.1](https://github.com/catamphetamine/write-excel-file) 和其依赖 [fflate 0.8.3](https://github.com/101arrowz/fflate) 使用 MIT 许可。两者随免安装包提供，在本机生成 Excel，原始许可证保存在 `app/node_modules` 的对应包目录。
 
+## 转账与红包
+
+[saxes 6.0.0](https://github.com/lddubeau/saxes) 使用 ISC 许可。其依赖 [xmlchars 2.2.0](https://github.com/lddubeau/xmlchars) 使用 MIT 许可。两者在本机解析支付消息，许可证分别在 [licenses/saxes.txt](licenses/saxes.txt) 和 `app/node_modules/xmlchars/LICENSE`。
+
 ## WeFlow CLI v5.0.1
 
 ChatKeepsake 通过进程调用 Windows x64 版 WeFlow CLI 来读取、导出用户所选会话。点击「安装读取助手」后，程序从 [334456777/WeFlow 的 v5.0.1 发布页](https://github.com/334456777/WeFlow/releases/tag/v5.0.1) 下载原版组件。仓库发布 ChatKeepsake 的源码与示例。

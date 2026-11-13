@@ -1,6 +1,6 @@
 # 开发指南
 
-在 Windows x64 上安装 Node.js 24 LTS，在项目目录运行下面的命令。Excel 依赖锁定在 `package-lock.json`，测试使用虚构聊天和模拟的助手输出。
+在 Windows x64 上安装 Node.js 24 LTS，在项目目录运行下面的命令。依赖锁定在 `package-lock.json`，测试使用虚构聊天和模拟的助手输出。
 
 ```powershell
 npm ci --ignore-scripts
@@ -24,12 +24,13 @@ npm start
 | 页面调用的本机接口和任务进度 | [server.js](server.js) |
 | 查找微信数据目录、调用读取助手 | [discover-wechat.js](discover-wechat.js)、[weflow.js](weflow.js) |
 | 保存记录、设置保存位置、生成 Excel | [archive.js](archive.js)、[save-location.js](save-location.js)、[export-excel.js](export-excel.js) |
+| 读取转账与红包、生成收支总账 | [chat-payments.js](chat-payments.js)、[payment-ledger.js](payment-ledger.js) |
 | 离线阅读页的样式和搜索 | [viewer/reader.css](viewer/reader.css)、[viewer/search.js](viewer/search.js)、[make-viewer.js](make-viewer.js) |
 | 语音组件下载和离线转写 | [voice-runtime.js](voice-runtime.js)、[voice-assets.json](voice-assets.json)、[transcribe.py](transcribe.py) |
 | 下载校验和续传 | [download-assets.js](download-assets.js) |
 | 测试和示例 | [test/](test/)、[demo/](demo/) |
 
-点击「保存这段聊天」后，`public/app.js` 请求 `server.js`。后者把工作交给 `archive.js`，由它调用 WeFlow 并在临时目录生成整份导出。保存成功后，临时目录才会出现在导出列表。阅读页的样式和搜索脚本会嵌入 HTML，方便把导出文件夹搬到另一台电脑打开。
+点击「保存选中的聊天」后，`public/app.js` 请求 `server.js`。后者把工作交给 `archive.js`，由它调用 WeFlow 并在临时目录生成导出。保存成功后，聊天才会出现在导出列表。批量导出的聊天各有一个子文件夹，可选的总账保存在批次根目录。阅读页的样式和搜索脚本嵌在 HTML 中。
 
 ## 打包 Windows 免安装版
 
@@ -39,7 +40,7 @@ npm start
 pwsh -NoProfile -File .\scripts\package-windows.ps1
 ```
 
-脚本从当前 Git 提交打包，校验官方 Windows x64 Node.js，并按锁文件安装 Excel 依赖。已有 Node.js 官方 ZIP 时，可用 `-NodeArchive` 指定文件。
+脚本从当前 Git 提交打包，校验官方 Windows x64 Node.js，并按锁文件安装依赖。已有 Node.js 官方 ZIP 时，可用 `-NodeArchive` 指定文件。
 
 当前 GitHub 免安装版使用 `-UseCommandLauncher` 打包，入口为 `启动 ChatKeepsake.cmd`。
 

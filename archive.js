@@ -4,18 +4,22 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { renderViewer, sender } = require('./make-viewer');
-const { messageType, isFileMessage, fileName, linkCard } = require('./chat-content');
+const { messageType, paymentText, isFileMessage, fileName, linkCard } = require('./chat-content');
 const { mediaFile, attachmentFile, imageExtensions, voiceExtensions, videoExtensions } = require('./media');
 const { repairVoices } = require('./repair-voices');
 const { repairVideos } = require('./repair-videos');
 const { saveAttachments } = require('./save-attachments');
 const { excelBytes, excelFile } = require('./export-excel');
+const { ownIdentity, readChatPayments } = require('./chat-payments');
+const { ledgerFile, makeLedger } = require('./payment-ledger');
 
 const readerFile = '完整聊天记录.html';
 const jsonFile = '聊天记录.json';
 const manifestFile = '导出说明.json';
 const transcriptFile = 'voice-transcripts.json';
+const batchManifest = '批次说明.json';
 const archiveId = /^\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}_[0-9a-f]{8}$/;
+const batchId = /^批量导出_(\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}_[0-9a-f]{8})$/;
 
 function validId(value) {
   return typeof value === 'string' && /^[a-zA-Z0-9_][\w@.-]{0,199}$/.test(value) &&
@@ -31,6 +35,25 @@ function validDate(value) {
 
 function readJson(file) {
   return JSON.parse(fs.readFileSync(file, 'utf8'));
+}
+
+function identifier(now) {
+  return now.slice(0, 19).replace('T', '_').replace(/:/g, '-') + '_' + crypto.randomBytes(4).toString('hex');
+}
+
+async function withDraft(base, work) {
+  const draft = fs.mkdtempSync(path.join(base, '.pending-'));
+  try {
+    return await work(draft);
+  } finally {
+    try {
+      if (fs.realpathSync.native(draft) === draft && fs.lstatSync(draft).isDirectory()) {
+        fs.rmSync(draft, { recursive: true, force: true });
+      }
+    } catch {
+      // A disconnected drive can leave an incomplete folder, which list() skips.
+    }
+  }
 }
 
 function tally(directory, messages) {
@@ -59,7 +82,7 @@ function tally(directory, messages) {
 
 async function writeArchive(directory, document, manifest) {
   const lines = document.messages.map(message => {
-    let body = String(message.content ?? '');
+    let body = paymentText(message) || String(message.content ?? '');
     if (message.localType === messageType.image) {
       const image = mediaFile(directory, message.content, imageExtensions);
       body = image ? '[图片] ' + image.name : (manifest.images ? '[图片没能保存]' : '[未选择保存图片]');
@@ -134,104 +157,165 @@ function commitFiles(directory, files) {
 }
 
 function createArchives(exportsDirectory) {
-  function get(id) {
-    if (typeof id !== 'string' || !archiveId.test(id)) throw new Error('请选择已完成的导出记录。');
+  function get(id, batch = '') {
+    if (typeof id !== 'string' || !archiveId.test(id) || typeof batch !== 'string' || (batch && !batchId.test(batch))) {
+      throw new Error('请选择已完成的导出记录。');
+    }
     try {
-      const directory = fs.realpathSync.native(path.join(exportsDirectory, id));
-      if (path.relative(fs.realpathSync.native(exportsDirectory), directory) !== id) throw new Error('Invalid archive path');
+      const relative = path.join(batch, id);
+      const base = fs.realpathSync.native(exportsDirectory);
+      const directory = fs.realpathSync.native(path.join(base, relative));
+      if (path.relative(base, directory) !== relative) throw new Error('Invalid archive path');
       const manifest = readJson(path.join(directory, manifestFile));
       const totalMessages = manifest?.counts?.messages;
       if (manifest?.schema !== 1 || manifest.id !== id ||
           !Number.isSafeInteger(totalMessages) || totalMessages < 0) throw new Error('Invalid archive manifest');
-      return { directory, manifest };
+      return { directory, manifest, batch };
     } catch {
       throw new Error('找不到这次导出。请刷新导出列表。');
     }
   }
 
   function list() {
-    const ids = fs.readdirSync(exportsDirectory, { withFileTypes: true })
-      .filter(entry => entry.isDirectory() && archiveId.test(entry.name))
-      .map(entry => entry.name).sort().reverse();
     const results = [];
-    for (const id of ids) {
-      try { results.push(get(id).manifest); }
-      catch {
-        // A missing or incomplete manifest does not hide other saved chats.
+    function add(id, batch, ledger) {
+      try {
+        const { directory, manifest } = get(id, batch);
+        results.push({ ...manifest, directory, ...(batch ? { batch, ledger } : {}) });
+      } catch {
+        // An incomplete export does not hide other saved chats.
       }
     }
-    return results;
+    for (const entry of fs.readdirSync(exportsDirectory, { withFileTypes: true })) {
+      if (!entry.isDirectory()) continue;
+      if (archiveId.test(entry.name)) {
+        add(entry.name, '', false);
+      } else if (batchId.test(entry.name)) {
+        try {
+          const batch = readJson(path.join(exportsDirectory, entry.name, batchManifest));
+          if (batch.schema !== 1 || !Array.isArray(batch.records)) continue;
+          for (const id of batch.records) add(id, entry.name, batch.ledger === true);
+        } catch {
+          // A batch folder may have been moved or manually removed.
+        }
+      }
+    }
+    return results.sort((a, b) => b.id.localeCompare(a.id));
   }
 
-  async function exportChat(options, backend, progress) {
-    const { session, start, end, images, voices, files = false, videos = false } = options;
-    const base = fs.realpathSync.native(exportsDirectory);
-    const draft = fs.mkdtempSync(path.join(base, '.pending-'));
+  async function writeChat(draft, options, backend, progress, getOwnIdentity) {
+    const { session, start, end, images, voices, files = false, videos = false, payments = false } = options;
     const args = ['export', 'messages', session, '--out', draft, '--format', 'json', '--progress'];
     const media = [images && 'image', voices && 'voice', videos && 'video'].filter(Boolean);
     if (media.length) args.push('--media', media.join(','));
     if (start) args.push('--start', start);
     if (end) args.push('--end', end);
-    let completed = false;
-    try {
-      if (images) {
-        progress('正在准备保存图片。');
-        try {
-          const profiles = await backend.run(['config', 'profiles']);
-          const ready = profiles.ok && Array.isArray(profiles.data) &&
-            profiles.data.some(profile => profile.current === true && profile.imageKeys === true);
-          if (!ready) await backend.run(['key', 'image', '--save']);
-        } catch {
-          // Keep saving the chat even if its images cannot be prepared.
-        }
-      }
-      const report = await backend.run(args, event => {
-        if (Number.isSafeInteger(event.current) && Number.isSafeInteger(event.total) && event.total > 0) {
-          progress('正在保存微信聊天，进度 ' + event.current + ' / ' + event.total);
-        }
-      });
-      if (!report.ok) throw new Error('没能保存这段聊天。请重新连接微信，再选一个人或群重试。');
-      const source = path.join(draft, session + '.json');
-      if (!fs.existsSync(source)) throw new Error('这些日期里没有聊天。请换一个日期范围，或把日期留空。');
-      const document = readJson(source);
-      if (!Array.isArray(document.messages) || !document.messages.length) {
-        throw new Error('这些日期里没有聊天。请换一个日期范围，或把日期留空。');
-      }
-      if (voices) {
-        progress('正在核对语音对应的消息');
-        await repairVoices(draft, session, document.messages, backend.run, (done, total) => {
-          progress('正在核对语音，进度 ' + done + ' / ' + total);
-        });
-      }
-      if (files) await saveAttachments(draft, session, document.messages, backend, progress);
-      if (videos) await repairVideos(draft, session, document.messages, backend, progress);
-
-      const now = new Date().toISOString();
-      const id = now.slice(0, 19).replace('T', '_').replace(/:/g, '-') + '_' + crypto.randomBytes(4).toString('hex');
-      const manifest = {
-        schema: 1, id, createdAt: now, name: document.session?.displayName || session,
-        start, end, images, voices, files, videos, counts: tally(draft, document.messages)
-      };
-      await writeArchive(draft, document, manifest);
-      fs.unlinkSync(source);
-      fs.renameSync(draft, path.join(base, id));
-      completed = true;
-      return manifest;
-    } finally {
-      if (!completed) {
-        try {
-          if (fs.realpathSync.native(draft) === draft && fs.lstatSync(draft).isDirectory()) {
-            fs.rmSync(draft, { recursive: true, force: true });
-          }
-        } catch {
-          // A disconnected drive can leave an incomplete folder, which list() skips.
-        }
+    if (images) {
+      progress('正在准备保存图片。');
+      try {
+        const profiles = await backend.run(['config', 'profiles']);
+        const ready = profiles.ok && Array.isArray(profiles.data) &&
+          profiles.data.some(profile => profile.current === true && profile.imageKeys === true);
+        if (!ready) await backend.run(['key', 'image', '--save']);
+      } catch {
+        // Keep saving the chat even if its images cannot be prepared.
       }
     }
+    const report = await backend.run(args, event => {
+      if (Number.isSafeInteger(event.current) && Number.isSafeInteger(event.total) && event.total > 0) {
+        progress('正在保存微信聊天，进度 ' + event.current + ' / ' + event.total);
+      }
+    });
+    if (report.code === 'no_messages') return null;
+    if (!report.ok) throw new Error('没能保存这段聊天。请重新连接微信后再试。');
+    const source = path.join(draft, session + '.json');
+    if (!fs.existsSync(source)) return null;
+    const document = readJson(source);
+    if (!Array.isArray(document.messages)) throw new Error('没能读取导出的聊天，请重试。');
+    if (!document.messages.length) return null;
+    if (voices) {
+      progress('正在核对语音对应的消息');
+      await repairVoices(draft, session, document.messages, backend.run, (done, total) => {
+        progress('正在核对语音，进度 ' + done + ' / ' + total);
+      });
+    }
+    if (files) await saveAttachments(draft, session, document.messages, backend, progress);
+    if (videos) await repairVideos(draft, session, document.messages, backend, progress);
+    const entries = payments ? await readChatPayments(session, document, backend, getOwnIdentity, progress) : [];
+
+    const now = new Date().toISOString();
+    const id = identifier(now);
+    const manifest = {
+      schema: 1, id, createdAt: now, name: document.session?.displayName || session,
+      start, end, images, voices, files, videos, counts: tally(draft, document.messages),
+      ...(payments ? { payments: entries.length } : {})
+    };
+    await writeArchive(draft, document, manifest);
+    fs.unlinkSync(source);
+    return { manifest, entries };
   }
 
-  async function saveExcel(id) {
-    const { directory } = get(id);
+  async function exportChat(options, backend, progress) {
+    const base = fs.realpathSync.native(exportsDirectory);
+    return withDraft(base, async draft => {
+      const result = await writeChat(draft, options, backend, progress, () => ownIdentity(backend));
+      if (!result) throw new Error('这些日期里没有聊天。请换一个日期范围，或把日期留空。');
+      if (options.payments) {
+        progress('正在生成转账与红包总账。');
+        const ledger = await makeLedger(result.entries, { ...options, saved: 1, skipped: 0 });
+        fs.writeFileSync(path.join(draft, ledgerFile), ledger, { flag: 'wx' });
+      }
+      fs.renameSync(draft, path.join(base, result.manifest.id));
+      return result.manifest;
+    });
+  }
+
+  async function exportBatch(sessions, options, backend, progress) {
+    const base = fs.realpathSync.native(exportsDirectory);
+    return withDraft(base, async draft => {
+      const records = [];
+      const entries = [];
+      const skipped = [];
+      let account;
+      const getOwnIdentity = () => account ??= ownIdentity(backend);
+      for (const [index, session] of sessions.entries()) {
+        const label = '第 ' + (index + 1) + ' / ' + sessions.length + ' 段聊天。';
+        progress('正在保存' + label);
+        await withDraft(draft, async chat => {
+          try {
+            const result = await writeChat(chat, { ...options, session }, backend, message => progress(label + message), getOwnIdentity);
+            if (!result) {
+              skipped.push({ session, empty: true });
+              return;
+            }
+            fs.renameSync(chat, path.join(draft, result.manifest.id));
+            records.push(result.manifest);
+            for (const entry of result.entries) entries.push(entry);
+          } catch {
+            skipped.push({ session, empty: false });
+          }
+        });
+      }
+      if (!records.length) {
+        if (skipped.every(item => item.empty)) throw new Error('这些日期里没有聊天。请换一个日期范围，或把日期留空。');
+        throw new Error('没能保存选中的聊天。请检查保存位置和微信连接，再试一次。');
+      }
+      if (options.payments) {
+        progress('正在生成转账与红包总账。');
+        const ledger = await makeLedger(entries, { ...options, saved: records.length, skipped: skipped.length });
+        fs.writeFileSync(path.join(draft, ledgerFile), ledger, { flag: 'wx' });
+      }
+      fs.writeFileSync(path.join(draft, batchManifest), JSON.stringify({
+        schema: 1, records: records.map(record => record.id), ledger: options.payments === true
+      }) + '\n', { flag: 'wx' });
+      const batch = '批量导出_' + identifier(new Date().toISOString());
+      fs.renameSync(draft, path.join(base, batch));
+      return { records, skipped, batch };
+    });
+  }
+
+  async function saveExcel(id, batch = '') {
+    const { directory } = get(id, batch);
     const file = path.join(directory, excelFile);
     try { if (fs.lstatSync(file).isFile()) return file; }
     catch (error) { if (error.code !== 'ENOENT') throw error; }
@@ -241,8 +325,8 @@ function createArchives(exportsDirectory) {
     return file;
   }
 
-  async function applyTranscripts(id) {
-    const { directory, manifest } = get(id);
+  async function applyTranscripts(id, batch = '') {
+    const { directory, manifest } = get(id, batch);
     const document = readJson(path.join(directory, jsonFile));
     const transcripts = readJson(path.join(directory, transcriptFile));
     const byAudio = new Map(transcripts.items.map(item => [item.audio, item]));
@@ -263,7 +347,7 @@ function createArchives(exportsDirectory) {
     return manifest.transcription;
   }
 
-  return { get, list, exportChat, saveExcel, applyTranscripts };
+  return { get, list, exportChat, exportBatch, saveExcel, applyTranscripts };
 }
 
 module.exports = { createArchives, validId, validDate, readerFile, jsonFile, transcriptFile };
