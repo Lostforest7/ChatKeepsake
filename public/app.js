@@ -96,7 +96,7 @@ function updateControls() {
 async function loadEnvironment() {
   const info = await call('info');
   if (info.apiVersion !== 7) {
-    throw new Error('旧版 ChatKeepsake 还在运行。请关闭原来的启动窗口，再双击「启动 ChatKeepsake」。');
+    throw new Error('旧版 ChatKeepsake 还在运行。请关闭原来的启动窗口，再从文件夹打开工具。');
   }
   environment = info;
   $('download').href = environment.download;

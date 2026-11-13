@@ -38,7 +38,19 @@ npm start
 pwsh -NoProfile -File .\scripts\package-windows.ps1
 ```
 
-脚本从当前 Git 提交打包，下载并校验官方 Windows x64 Node.js，生成 `dist/ChatKeepsake-Windows-x64.zip`。需要复用已下载的官方 ZIP 时，可用 `-NodeArchive` 指定路径。发布时，把生成的 ZIP 上传到 GitHub Releases，并保留文件名供首页链接使用。
+脚本从当前 Git 提交打包，校验官方 Windows x64 Node.js，并用 Windows 自带的 .NET Framework 编译器构建 `ChatKeepsake.exe`。已有 Node.js 官方 ZIP 时，可用 `-NodeArchive` 指定文件。启动器内嵌程序文件的 SHA-256 清单，每次启动时核对。
+
+默认生成 `dist/ChatKeepsake-Windows-x64-unsigned.zip`，供本地测试。正式发布时，用 `-SignLauncher` 传入签名步骤。脚本会把启动器路径交给该步骤，验证通过后生成 `dist/ChatKeepsake-Windows-x64.zip`。下面的示例需要安装 Windows SDK 的 SignTool，并在签名环境中配置可用的可信代码签名证书。
+
+```powershell
+.\scripts\package-windows.ps1 -SignLauncher {
+  param($Launcher)
+  & signtool.exe sign /a /fd SHA256 /tr https://timestamp.digicert.com /td SHA256 $Launcher
+  if ($LASTEXITCODE -ne 0) { throw 'Code signing failed.' }
+}
+```
+
+将签名后的 ZIP 上传到 GitHub Releases，保留文件名供首页链接使用。签名服务只需要接收构建出的启动器。
 
 ## 提交改动
 

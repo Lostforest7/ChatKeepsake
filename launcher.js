@@ -58,7 +58,7 @@ async function runningPage(file, apiVersion) {
     } catch {}
     await delay(150);
   }
-  throw new Error('已有 ChatKeepsake 在运行。请关闭原来的启动窗口，再双击「启动 ChatKeepsake」。');
+  throw new Error('已有 ChatKeepsake 在运行。请关闭原来的启动窗口，再从文件夹打开工具。');
 }
 
 async function showPage(url, reused = false) {

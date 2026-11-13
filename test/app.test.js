@@ -299,6 +299,10 @@ test('export and transcribe a synthetic chat through the local API', { timeout: 
   }
 
   assert.equal((await fetch(base + '/')).status, 200);
+  const privacy = await fetch(base + '/privacy/');
+  assert.equal(privacy.status, 200);
+  assert.match(await privacy.text(), /聊天记录留在你的电脑上/);
+  assert.match(privacy.headers.get('content-security-policy'), /connect-src 'self'/);
   assert.match(await (await fetch(base + '/demo/')).text(), /周末散步/);
   assert.equal((await call('info', {}, { 'X-Local-Token': 'invalid' })).status, 403);
   assert.equal((await call('info', {}, { Origin: 'https://example.invalid' })).status, 403);

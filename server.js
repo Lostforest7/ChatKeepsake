@@ -22,6 +22,7 @@ const demoDir = path.join(root, 'demo');
 const defaultDataDirectory = path.join(process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local'), 'ChatKeepsake');
 const staticFiles = new Map([
   ['/', ['public/index.html', 'text/html; charset=utf-8']],
+  ['/privacy/', ['public/privacy.html', 'text/html; charset=utf-8']],
   ['/style.css', ['public/style.css', 'text/css; charset=utf-8']],
   ['/app.js', ['public/app.js', 'text/javascript; charset=utf-8']],
   ['/demo/media/demo/trail.png', ['demo/media/demo/trail.png', 'image/png']],
@@ -284,7 +285,7 @@ function createServer({
     catch { return reply(response, 400, { error: '地址无效。' }); }
     if (request.method === 'GET' && staticFiles.has(route)) {
       const [file, contentType] = staticFiles.get(route);
-      const headers = route === '/' ? {
+      const headers = contentType.startsWith('text/html') ? {
         'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"
       } : {};
       try { return reply(response, 200, fs.readFileSync(path.join(root, file)), contentType, headers); }
@@ -299,7 +300,7 @@ function createServer({
       }
     }
     if (request.method !== 'POST' || request.headers.origin !== base || request.headers['x-local-token'] !== token) {
-      return reply(response, 403, { error: '这个页面已经过期。请再次双击「启动 ChatKeepsake.cmd」打开。' });
+      return reply(response, 403, { error: '这个页面已经过期。请从 ChatKeepsake 文件夹重新打开工具。' });
     }
     if (route === '/api/status') return reply(response, 200, activity);
     if (route === '/api/info') {

@@ -88,6 +88,11 @@ summary { cursor: pointer; color: var(--deep-green); font-weight: 650; }
 .output-path { font-size: 13px; color: var(--subtle); overflow-wrap: anywhere; }
 .voice-setup { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
 footer { color: var(--subtle); padding-block: 18px 30px; font-size: 13px; }
+footer a { margin-inline-start: 8px; color: var(--deep-green); }
+.privacy { max-width: 720px; padding-block: 32px; }
+.privacy h1 { font-size: 28px; }
+.privacy li + li { margin-top: 8px; }
+.privacy a { color: var(--deep-green); }
 
 @media (max-width: 780px) {
   .hero { grid-template-columns: 1fr; align-items: start; gap: 14px; padding-block: 24px 16px; }
