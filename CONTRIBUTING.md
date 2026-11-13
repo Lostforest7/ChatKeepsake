@@ -30,6 +30,16 @@ npm start
 
 点击「保存这段聊天」后，`public/app.js` 请求 `server.js`。后者把工作交给 `archive.js`，由它调用 WeFlow 并在临时目录生成整份导出。保存成功后，临时目录才会出现在导出列表。阅读页的样式和搜索脚本会嵌入 HTML，方便把导出文件夹搬到另一台电脑打开。
 
+## 打包 Windows 免安装版
+
+提交要发布的改动后，在项目目录用 PowerShell 7 运行。
+
+```powershell
+pwsh -NoProfile -File .\scripts\package-windows.ps1
+```
+
+脚本从当前 Git 提交打包，下载并校验官方 Windows x64 Node.js，生成 `dist/ChatKeepsake-Windows-x64.zip`。需要复用已下载的官方 ZIP 时，可用 `-NodeArchive` 指定路径。发布时，把生成的 ZIP 上传到 GitHub Releases，并保留文件名供首页链接使用。
+
 ## 提交改动
 
 - 跟随现有格式。JavaScript 使用 CommonJS、两空格缩进，Python 使用四空格缩进。

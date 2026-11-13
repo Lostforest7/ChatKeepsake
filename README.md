@@ -2,16 +2,17 @@
 
 把你和某个人或群的微信聊天保存到电脑。打开保存好的聊天，可以搜索消息、看图片、听语音、播放视频和查看聊天文件。
 
-适用于使用 Intel 或 AMD 处理器的 Windows 电脑和电脑版微信 4.x。
+适用于使用 Intel 或 AMD 处理器的 64 位 Windows 电脑和电脑版微信 4.x。
 
-![ChatKeepsake 页面示例](docs/start.png)
+**[下载 Windows 免安装版](https://github.com/Lostforest7/ChatKeepsake/releases/latest/download/ChatKeepsake-Windows-x64.zip)**
+
+运行环境已包含在下载包里。
 
 ## 第一次使用
 
-1. **安装 Node.js**。打开 [Node.js 下载页](https://nodejs.org/en/download)，选择 **v24 LTS**、**Windows** 和 **x64**，下载安装程序（.msi），按提示完成安装。
-2. **下载本工具**。在本页上方点绿色 **Code → Download ZIP**。下载后右键 ZIP，选择 **全部解压缩**。
-3. **打开工具**。进入解压出的文件夹，双击 **启动 ChatKeepsake.cmd**。浏览器会打开工具页面，请保持启动窗口开启。
-4. **连接微信**。在电脑上登录微信。在工具页面点 **安装读取助手**，等待安装完成，再点 **使用当前微信**。
+1. 点上方的 **下载 Windows 免安装版**。右键下载的 ZIP，选择 **全部解压缩**。
+2. 在解压后的文件夹里双击 **启动 ChatKeepsake.cmd**。浏览器打开后，请保持启动窗口开启。
+3. 登录电脑版微信，在工具页面点 **安装读取助手**，安装完成后点 **使用当前微信**。
 
 首次安装读取助手需要联网，下载约 12 MB。页面上的 **看看保存后的样子** 可以打开一段示例聊天。
 
@@ -23,6 +24,8 @@
 3. 在屏幕右下角找到微信图标，右键选择 **退出微信**。等几秒后重新打开微信并登录，等待连接完成。
 
 </details>
+
+![ChatKeepsake 页面示例](docs/start.png)
 
 ## 保存聊天
 

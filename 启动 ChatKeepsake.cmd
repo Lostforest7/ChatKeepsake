@@ -1,26 +1,40 @@
 @echo off
-setlocal
+setlocal DisableDelayedExpansion
 title ChatKeepsake
 chcp 65001 >nul
 cd /d "%~dp0"
-where node.exe >nul 2>nul
-if errorlevel 1 (
-  echo 请安装 Node.js 24 LTS 的 Windows x64 版
-  echo https://nodejs.org/en/download
-  echo 安装完成后关闭此窗口，再双击启动 ChatKeepsake。
-  pause
-  exit /b 1
-)
-node.exe -e "process.exit(Number(process.versions.node.split('.')[0]) >= 20 ? 0 : 1)"
-if errorlevel 1 (
-  echo 请更新到 Node.js 24 LTS，再双击启动 ChatKeepsake。
-  pause
-  exit /b 1
-)
-node.exe "%~dp0server.js"
-if errorlevel 1 (
-  echo.
-  echo ChatKeepsake 没能打开，请查看上面的提示。
-  pause
-  exit /b 1
-)
+if exist "%~dp0app\" goto portable
+if not exist "%~dp0server.js" goto incomplete
+
+node.exe -e "process.exit(Number(process.versions.node.split('.')[0]) >= 20 ? 0 : 1)" >nul 2>nul
+if not "%errorlevel%"=="0" goto source
+set "CHATKEEPSAKE_NODE_EXE=node.exe"
+set "CHATKEEPSAKE_ENTRY=%~dp0server.js"
+goto launch
+
+:portable
+if not exist "%~dp0app\node.exe" goto incomplete
+if not exist "%~dp0app\server.js" goto incomplete
+set "NODE_OPTIONS="
+set "NODE_PATH="
+set "CHATKEEPSAKE_NODE_EXE=%~dp0app\node.exe"
+set "CHATKEEPSAKE_ENTRY=%~dp0app\server.js"
+
+:launch
+"%CHATKEEPSAKE_NODE_EXE%" "%CHATKEEPSAKE_ENTRY%"
+if "%errorlevel%"=="0" exit /b 0
+echo.
+echo ChatKeepsake 没能打开，请查看上面的提示。
+pause
+exit /b 1
+
+:source
+echo 你打开的是源码版。请到项目首页点击「下载 Windows 免安装版」。
+echo https://github.com/Lostforest7/ChatKeepsake
+pause
+exit /b 1
+
+:incomplete
+echo 程序文件不完整。请右键下载的 ZIP，选择「全部解压缩」，再双击启动文件。
+pause
+exit /b 1

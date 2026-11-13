@@ -12,6 +12,7 @@ voice-downloads/
 voice-build-*/
 /node_modules/
 /data/
+/dist/
 /work/
 /.local/
 running.lock
