@@ -88,6 +88,13 @@ summary { cursor: pointer; color: var(--deep-green); font-weight: 650; }
 .save-location .actions { margin-top: 8px; }
 .output-path { font-size: 13px; color: var(--subtle); overflow-wrap: anywhere; }
 #archive-path { margin-bottom: 8px; }
+dialog {
+  width: min(460px, 100% - 24px); padding: 20px; color: var(--text); background: var(--paper);
+  border: 1px solid var(--line); border-radius: 15px; box-shadow: 0 12px 44px #182c252b;
+}
+dialog::backdrop { background: #182c2555; }
+dialog h2 { margin-bottom: 12px; }
+.form-error { margin-bottom: 10px; color: #ad4033; }
 .voice-setup { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
 footer { color: var(--subtle); padding-block: 18px 30px; font-size: 13px; }
 footer a { margin-inline-start: 8px; color: var(--deep-green); }

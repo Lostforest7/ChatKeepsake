@@ -87,7 +87,6 @@ test('export and transcribe a synthetic chat through the local API', { timeout: 
   const opened = [];
   const customDirectory = path.join(directory, '保存位置 & 中文');
   fs.mkdirSync(customDirectory);
-  const folderSelections = ['', path.join(directory, 'missing-folder'), customDirectory];
   let helperInstalled = false;
   let installAttempts = 0;
   let imagesReady = false;
@@ -267,7 +266,6 @@ test('export and transcribe a synthetic chat through the local API', { timeout: 
     findAccounts: (engine, manualPath) => discoverWeChatAccounts(engine, manualPath, async () => ({
       configured: await configuredPaths([roaming]), defaults: [stale, other], drives: []
     }), async details => details.flatMap((item, index) => item.id === 'wxid_fixture' ? [index] : [])),
-    chooseFolder: async () => folderSelections.shift(),
     openPath: async target => opened.push(target)
   });
   server.listen(0, '127.0.0.1');
@@ -331,8 +329,9 @@ test('export and transcribe a synthetic chat through the local API', { timeout: 
   assert.deepEqual(commands, [], 'Installing the helper must not run WeFlow.');
   assert.equal((await call('open-exports', {}, { 'X-Local-Token': 'invalid' })).status, 403);
   assert.equal((await call('save-location', {}, { Origin: 'https://example.invalid' })).status, 403);
-  assert.equal((await post('save-location')).cancelled, true);
   assert.equal((await call('save-location')).status, 400);
+  assert.equal((await call('save-location', { directory: path.join(directory, 'missing-folder') })).status, 400);
+  assert.equal((await post('info')).exportsDirectory, path.join(directory, 'exports'));
   assert.equal((await post('info')).exportsDirectory, info.exportsDirectory);
   await post('open-exports', { path: directory });
   assert.deepEqual(opened, [path.join(directory, 'exports')]);
@@ -410,7 +409,7 @@ test('export and transcribe a synthetic chat through the local API', { timeout: 
   assert.equal(opened.at(-1), excel);
   const beforeTranscript = fs.readFileSync(excel);
   const newFolder = fs.realpathSync.native(customDirectory);
-  assert.equal((await post('save-location')).exportsDirectory, newFolder);
+  assert.equal((await post('save-location', { directory: ' "' + customDirectory + '" ' })).exportsDirectory, newFolder);
   const restarted = createServer({ dataDirectory: directory });
   restarted.server.listen(0, '127.0.0.1');
   await once(restarted.server, 'listening');

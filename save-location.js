@@ -4,7 +4,6 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { createArchives } = require('./archive');
-const { runProcess } = require('./run-process');
 
 function localFolder(directory) {
   return typeof directory === 'string' && directory.length <= 4096 &&
@@ -45,10 +44,11 @@ function createSaveLocation(dataDirectory) {
   folders = [...new Map([...folders, current].map(folder => [folderKey(folder), folder])).values()];
 
   function select(directory) {
-    if (!localFolder(directory)) throw new Error('请选择电脑上的文件夹，例如 D:\\聊天记录。');
+    const typed = typeof directory === 'string' ? directory.trim().replace(/^"(.*)"$/, '$1') : '';
+    if (!localFolder(typed)) throw new Error('请填写电脑上的文件夹路径，例如 D:\\聊天记录。');
     let canonical;
     try {
-      canonical = resolveFolder(directory);
+      canonical = resolveFolder(typed);
       checkWritable(canonical);
     } catch {
       throw new Error('这个文件夹不可用或无法写入，请另选一个。');
@@ -114,38 +114,4 @@ function createSaveLocation(dataDirectory) {
   return { get current() { return current; }, select, list, get, ready };
 }
 
-async function chooseSaveFolder(directory) {
-  if (process.platform !== 'win32') throw new Error('选择保存位置需要 Windows。');
-  const system32 = path.join(process.env.SystemRoot || 'C:\\Windows', 'System32');
-  const powershell = path.join(system32, 'WindowsPowerShell', 'v1.0', 'powershell.exe');
-  const script = [
-    '$ErrorActionPreference = "Stop"',
-    '[Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)',
-    'Add-Type -AssemblyName System.Windows.Forms',
-    '$dialog = New-Object Windows.Forms.FolderBrowserDialog',
-    '$owner = New-Object Windows.Forms.Form',
-    '$owner.TopMost = $true',
-    '$owner.ShowInTaskbar = $false',
-    '$owner.Opacity = 0',
-    'try {',
-    '  $dialog.Description = "ChatKeepsake"',
-    '  $dialog.ShowNewFolderButton = $true',
-    '  if ([IO.Directory]::Exists($env:CHATKEEPSAKE_FOLDER_START)) { $dialog.SelectedPath = $env:CHATKEEPSAKE_FOLDER_START }',
-    '  $owner.Show()',
-    '  if ($dialog.ShowDialog($owner) -eq [Windows.Forms.DialogResult]::OK) { [Console]::Write($dialog.SelectedPath) }',
-    '} finally { $dialog.Dispose(); $owner.Dispose() }'
-  ].join('\n');
-  try {
-    const encoded = Buffer.from(script, 'utf16le').toString('base64');
-    const result = await runProcess(powershell, ['-NoProfile', '-NonInteractive', '-STA', '-EncodedCommand', encoded], {
-      env: { ...process.env, CHATKEEPSAKE_FOLDER_START: directory },
-      signal: AbortSignal.timeout(5 * 60 * 1000)
-    });
-    if (result.code === 0 && !result.exceeded) return result.stdout;
-  } catch {
-    // The UI can be reopened if the dialog times out or the user session ends.
-  }
-  throw new Error('没能打开文件夹选择窗口。请再点一次「更改保存位置」。');
-}
-
-module.exports = { createSaveLocation, chooseSaveFolder };
+module.exports = { createSaveLocation };

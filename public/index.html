@@ -194,5 +194,20 @@
     </div>
     <footer>聊天文件留在这台电脑上。使用时请保持启动窗口打开。<a href="/privacy/">安全与隐私声明</a></footer>
   </div>
+  <dialog id="location-dialog" aria-labelledby="location-title">
+    <form id="location-form">
+      <h2 id="location-title">更改保存位置</h2>
+      <div class="field">
+        <label for="location-input">文件夹路径</label>
+        <input id="location-input" type="text" aria-describedby="location-help" spellcheck="false" maxlength="4096" required>
+        <p id="location-help" class="hint">在文件资源管理器里打开想用的文件夹，复制地址栏里的路径，再粘贴到这里。</p>
+      </div>
+      <p id="location-error" class="form-error" role="alert" hidden></p>
+      <div class="actions">
+        <button id="save-location-button" type="submit">保存位置</button>
+        <button id="cancel-location" type="button" class="secondary">取消</button>
+      </div>
+    </form>
+  </dialog>
 </body>
 </html>

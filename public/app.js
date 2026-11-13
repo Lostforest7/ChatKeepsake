@@ -81,6 +81,7 @@ function updateControls() {
   $('open-folder').disabled = busy || !selected;
   $('open-exports').disabled = busy || !environment.exportsDirectory;
   $('change-location').disabled = busy || !environment.exportsDirectory;
+  $('save-location-button').disabled = busy;
   const hasVoice = Boolean(selected?.counts.voiceFiles);
   const canTranscribe = hasVoice && (environment.voiceSupported || environment.voiceReady);
   $('voice-setup').hidden = !hasVoice;
@@ -340,18 +341,32 @@ bind('export', async () => track(await call('export', {
 })));
 
 $('archive').addEventListener('change', renderRecord);
-bind('change-location', async () => {
-  const previous = $('status').textContent;
-  const previousKind = $('status-dot').dataset.kind;
-  notice('请在 Windows 文件夹窗口中选择保存位置。', 'running');
-  const result = await call('save-location');
-  if (result.cancelled) {
-    notice(previous, previousKind);
-    return;
-  }
-  environment.exportsDirectory = result.exportsDirectory;
-  await refreshRecords();
-  notice(result.message, 'done');
+$('change-location').addEventListener('click', () => {
+  $('location-error').hidden = true;
+  const input = $('location-input');
+  input.value = environment.exportsDirectory;
+  $('location-dialog').showModal();
+  input.select();
+});
+$('cancel-location').addEventListener('click', () => $('location-dialog').close());
+$('location-form').addEventListener('submit', event => {
+  event.preventDefault();
+  perform(async () => {
+    const errorMessage = $('location-error');
+    errorMessage.hidden = true;
+    let result;
+    try {
+      result = await call('save-location', { directory: $('location-input').value });
+    } catch (error) {
+      errorMessage.textContent = error.message;
+      errorMessage.hidden = false;
+      return;
+    }
+    environment.exportsDirectory = result.exportsDirectory;
+    $('location-dialog').close();
+    await refreshRecords();
+    notice(result.message, 'done');
+  });
 });
 bind('refresh', async () => {
   await loadEnvironment();

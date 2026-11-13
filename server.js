@@ -15,7 +15,7 @@ const { mediaFile, voiceExtensions } = require('./media');
 const { renderViewer } = require('./make-viewer');
 const { discoverWeChatAccounts } = require('./discover-wechat');
 const { createVoiceRuntime } = require('./voice-runtime');
-const { createSaveLocation, chooseSaveFolder } = require('./save-location');
+const { createSaveLocation } = require('./save-location');
 
 const root = __dirname;
 const apiVersion = 8;
@@ -85,7 +85,6 @@ function createServer({
   backend = createWeFlow(dataDirectory),
   voiceRuntime = createVoiceRuntime(dataDirectory),
   openPath = launchExplorer,
-  chooseFolder = chooseSaveFolder,
   transcribeProcess = runProcess,
   findAccounts = discoverWeChatAccounts
 } = {}) {
@@ -257,9 +256,7 @@ function createServer({
     }
 
     if (route === '/api/save-location') {
-      const directory = await chooseFolder(saveLocation.current);
-      if (!directory) return { exportsDirectory: saveLocation.current, cancelled: true };
-      return { exportsDirectory: saveLocation.select(directory), message: '保存位置已更新，下次导出会存到这里。' };
+      return { exportsDirectory: saveLocation.select(body.directory), message: '保存位置已更新，下次导出会存到这里。' };
     }
 
     if (route === '/api/open-exports') {
