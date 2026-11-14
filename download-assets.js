@@ -37,13 +37,13 @@ async function windowsProxy(url) {
   try {
     const result = await runProcess(windowsPowerShell, ['-NoProfile', '-NonInteractive', '-Command', [
       "$ErrorActionPreference = 'Stop'",
-      '$address = [uri]$env:CHATKEEPSAKE_DOWNLOAD_URL',
+      '$address = [uri]$env:WECHAT_CHATS_TO_FILES_DOWNLOAD_URL',
       '$proxy = [System.Net.WebRequest]::GetSystemWebProxy().GetProxy($address)',
       'if ($proxy -and $proxy.AbsoluteUri -ne $address.AbsoluteUri -and !$proxy.UserInfo) {',
       '  [Console]::Write($proxy.AbsoluteUri)',
       '}'
     ].join('\n')], {
-      env: { ...process.env, CHATKEEPSAKE_DOWNLOAD_URL: url },
+      env: { ...process.env, WECHAT_CHATS_TO_FILES_DOWNLOAD_URL: url },
       signal: AbortSignal.timeout(6000)
     });
     if (result.code !== 0 || !result.stdout.trim()) return '';

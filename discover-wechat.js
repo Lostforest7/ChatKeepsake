@@ -112,7 +112,7 @@ async function windowsOpenDatabases(accounts) {
   try {
     const probe = await fs.readFile(path.join(__dirname, 'scripts', 'wechat-open-databases.ps1'), 'utf8');
     const result = await runProcess('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', probe], {
-      env: { ...process.env, CHATKEEPSAKE_DB_PROBE: payload }, signal: AbortSignal.timeout(6500)
+      env: { ...process.env, WECHAT_CHATS_TO_FILES_DB_PROBE: payload }, signal: AbortSignal.timeout(6500)
     });
     if (result.code !== 0) return [];
     const matches = JSON.parse(result.stdout);

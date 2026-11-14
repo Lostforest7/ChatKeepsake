@@ -55,16 +55,16 @@ function createWeFlow(dataDirectory) {
       const script = [
         "$ErrorActionPreference = 'Stop'",
         'Add-Type -AssemblyName System.IO.Compression.FileSystem',
-        '$bundle = [IO.Compression.ZipFile]::OpenRead($env:CHATKEEPSAKE_INSTALL_ZIP)',
+        '$bundle = [IO.Compression.ZipFile]::OpenRead($env:WECHAT_CHATS_TO_FILES_INSTALL_ZIP)',
         'try {',
         `  $exeEntry = $bundle.GetEntry('weflow-v${version}-windows-x64/weflow.exe')`,
         `  $licenseEntry = $bundle.GetEntry('weflow-v${version}-windows-x64/LICENSE')`,
-        '  [IO.Compression.ZipFileExtensions]::ExtractToFile($exeEntry, $env:CHATKEEPSAKE_INSTALL_EXE, $false)',
-        '  [IO.Compression.ZipFileExtensions]::ExtractToFile($licenseEntry, $env:CHATKEEPSAKE_INSTALL_LICENSE, $false)',
+        '  [IO.Compression.ZipFileExtensions]::ExtractToFile($exeEntry, $env:WECHAT_CHATS_TO_FILES_INSTALL_EXE, $false)',
+        '  [IO.Compression.ZipFileExtensions]::ExtractToFile($licenseEntry, $env:WECHAT_CHATS_TO_FILES_INSTALL_LICENSE, $false)',
         '} finally { $bundle.Dispose() }'
       ].join('\n');
       const result = await runProcess('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], {
-        env: { ...process.env, CHATKEEPSAKE_INSTALL_ZIP: zipFile, CHATKEEPSAKE_INSTALL_EXE: tempExe, CHATKEEPSAKE_INSTALL_LICENSE: tempLicense }
+        env: { ...process.env, WECHAT_CHATS_TO_FILES_INSTALL_ZIP: zipFile, WECHAT_CHATS_TO_FILES_INSTALL_EXE: tempExe, WECHAT_CHATS_TO_FILES_INSTALL_LICENSE: tempLicense }
       });
       if (result.code !== 0 || sha256(fs.readFileSync(tempExe)) !== exeSha256) {
         throw new Error('助手没能安装好。请再点一次「安装读取助手」重试。');

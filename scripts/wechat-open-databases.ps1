@@ -7,7 +7,7 @@ using System;
 using System.Runtime.InteropServices;
 using System.Text;
 
-public static class ChatKeepsakeRestartManager {
+public static class WeChatDatabaseRestartManager {
     [StructLayout(LayoutKind.Sequential)]
     private struct UniqueProcess {
         public int Pid;
@@ -60,12 +60,12 @@ public static class ChatKeepsakeRestartManager {
 }
 '@
 
-$groups = ConvertFrom-Json -InputObject $env:CHATKEEPSAKE_DB_PROBE
+$groups = ConvertFrom-Json -InputObject $env:WECHAT_CHATS_TO_FILES_DB_PROBE
 $matched = @()
 for ($index = 0; $index -lt $groups.Count; $index++) {
     $files = [string[]]@($groups[$index].files | Where-Object { [IO.File]::Exists($_) })
     if ($files.Length -eq 0) { continue }
-    foreach ($owner in [ChatKeepsakeRestartManager]::ProcessesUsing($files)) {
+    foreach ($owner in [WeChatDatabaseRestartManager]::ProcessesUsing($files)) {
         $process = Get-Process -Id $owner -ErrorAction SilentlyContinue
         if ($process.ProcessName -in 'Weixin','WeChat') {
             $matched += $index

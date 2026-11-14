@@ -8,10 +8,10 @@ npm test
 npm start
 ```
 
-页面打开后，可以点 **看看保存后的样子** 验证阅读页。要用一套独立的数据做界面测试，可以在启动前把 `CHATKEEPSAKE_DATA_DIR` 指向临时目录。
+页面打开后，可以点 **看看保存后的样子** 验证阅读页。要用一套独立的数据做界面测试，可以在启动前把 `WECHAT_CHATS_TO_FILES_DATA_DIR` 指向临时目录。
 
 ```powershell
-$env:CHATKEEPSAKE_DATA_DIR = Join-Path $env:TEMP 'ChatKeepsake-dev'
+$env:WECHAT_CHATS_TO_FILES_DATA_DIR = Join-Path $env:TEMP 'WeChatChatsToFiles-dev'
 npm start
 ```
 
@@ -42,7 +42,7 @@ pwsh -NoProfile -File .\scripts\package-windows.ps1
 
 脚本从当前 Git 提交打包，校验官方 Windows x64 Node.js，并按锁文件安装依赖。已有 Node.js 官方 ZIP 时，可用 `-NodeArchive` 指定文件。
 
-当前 GitHub 免安装版使用 `-UseCommandLauncher` 打包，入口为 `启动 ChatKeepsake.cmd`。
+当前 GitHub 免安装版使用 `-UseCommandLauncher` 打包，入口为 `启动 WeChat Chats to Files.cmd`。
 
 ```powershell
 pwsh -NoProfile -File .\scripts\package-windows.ps1 -UseCommandLauncher
@@ -50,7 +50,7 @@ pwsh -NoProfile -File .\scripts\package-windows.ps1 -UseCommandLauncher
 
 EXE 启动器由 Windows 自带的 .NET Framework 编译器构建。它内嵌程序文件的 SHA-256 清单，每次启动时核对。
 
-默认生成 `dist/ChatKeepsake-Windows-x64-unsigned.zip`，供本地测试。正式发布时，用 `-SignLauncher` 传入签名步骤。脚本会把启动器路径交给该步骤，验证通过后生成 `dist/ChatKeepsake-Windows-x64.zip`。下面的示例需要安装 Windows SDK 的 SignTool，并在签名环境中配置可用的可信代码签名证书。
+默认生成 `dist/WeChat-Chats-to-Files-Windows-x64-unsigned.zip`，供本地测试。正式发布时，用 `-SignLauncher` 传入签名步骤。脚本会把启动器路径交给该步骤，验证通过后生成 `dist/WeChat-Chats-to-Files-Windows-x64.zip`。下面的示例需要安装 Windows SDK 的 SignTool，并在签名环境中配置可用的可信代码签名证书。
 
 ```powershell
 .\scripts\package-windows.ps1 -SignLauncher {

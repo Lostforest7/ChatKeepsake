@@ -62,7 +62,7 @@ test('the voice model downloader verifies ranges and resumes after a failed segm
     offsets.length = 0;
     peak = 0;
     const temp = await fs.realpath(os.tmpdir());
-    const directory = await fs.mkdtemp(path.join(temp, 'chatkeepsake-model-'));
+    const directory = await fs.mkdtemp(path.join(temp, 'wechat-chats-to-files-model-'));
     test.after(async () => {
       const target = await fs.realpath(directory);
       assert.equal(path.dirname(target), temp);

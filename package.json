@@ -1,6 +1,6 @@
 {
-  "name": "chatkeepsake",
-  "version": "0.4.0",
+  "name": "wechat-chats-to-files",
+  "version": "0.4.1",
   "private": true,
   "license": "MIT",
   "description": "A local Windows tool for archiving personal WeChat chats.",

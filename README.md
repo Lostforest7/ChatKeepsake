@@ -1,17 +1,19 @@
-# ChatKeepsake · 微信聊天记录保存工具
+# WeChat Chats to Files · 微信聊天记录保存工具
 
 把个人或群聊保存到电脑，支持 **网页（HTML）、Excel（.xlsx）、TXT 和 JSON**。可一起保存图片、语音、视频、文件和转账红包记录，语音可在本机转成文字。
 
 适用于使用 Intel 或 AMD 处理器的 64 位 Windows 电脑和电脑版微信 4.x。
 
-**[下载 Windows 免安装版](https://github.com/Lostforest7/ChatKeepsake/releases/latest/download/ChatKeepsake-Windows-x64.zip)**
+**[下载 Windows 免安装版](https://github.com/Lostforest7/wechat-chats-to-files/releases/latest/download/WeChat-Chats-to-Files-Windows-x64.zip)**
 
 运行环境已包含在下载包里。
+
+从旧版升级时，先关掉旧启动窗口，再打开新版。第 3 步仍可打开原来保存的聊天。
 
 ## 第一次使用
 
 1. 点上方的 **下载 Windows 免安装版**。右键下载的 ZIP，选择 **全部解压缩**。
-2. 在解压后的文件夹里双击 **启动 ChatKeepsake.cmd**。浏览器打开后，请保持启动窗口开启。
+2. 在解压后的文件夹里双击 **启动 WeChat Chats to Files.cmd**。浏览器打开后，请保持启动窗口开启。
 3. 登录电脑版微信，在工具页面点 **安装读取助手**，安装完成后点 **使用当前微信**。
 
 首次安装读取助手需要联网，下载约 12 MB。页面上的 **看看保存后的样子** 可以打开一段示例聊天。
@@ -20,13 +22,13 @@
 
 这一步可能需要管理员权限。
 
-1. 关闭工具原来的启动窗口。在解压后的文件夹里右键 **启动 ChatKeepsake.cmd**，选 **以管理员身份运行**，确认 Windows 的权限提示。
+1. 关闭工具原来的启动窗口。在解压后的文件夹里右键 **启动 WeChat Chats to Files.cmd**，选 **以管理员身份运行**，确认 Windows 的权限提示。
 2. 在新打开的页面上点 **使用当前微信**，再点 **开始连接**。
 3. 从屏幕右下角的微信图标菜单选择 **退出微信**。等几秒后重新打开微信，登录同一个账号，等待工具显示已连接。
 
 连接成功后，平时可以双击正常打开。
 
-![ChatKeepsake 页面示例](docs/start.png)
+![WeChat Chats to Files 页面示例](docs/start.png)
 
 ## 保存聊天
 

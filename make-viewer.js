@@ -96,7 +96,7 @@ function renderViewer(directory, document, options = {}) {
   return '<!doctype html>\n<html lang="zh-CN">\n<head>\n<meta charset="utf-8">\n' +
     '<meta name="viewport" content="width=device-width, initial-scale=1">\n' +
     '<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; img-src \'self\' file:; media-src \'self\' file:; style-src \'unsafe-inline\'; script-src \'sha256-' + scriptHash + '\'; base-uri \'none\'; form-action \'none\'">\n' +
-    '<title>' + title + ' · ChatKeepsake</title>\n' +
+    '<title>' + title + ' · WeChat Chats to Files</title>\n' +
     '<style>\n' + readerStyles + '\n</style>\n</head>\n<body>\n<header><div>' +
     '<h1>' + title + '</h1><p class="note">' +
     (options.demo ? '示例聊天，可以试着看图、听语音和搜索。' : '要移动这段聊天，请把整个文件夹一起移动。语音下面的文字可能有听错的地方。') +

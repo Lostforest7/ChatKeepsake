@@ -58,31 +58,31 @@ async function runningPage(file, apiVersion) {
     } catch {}
     await delay(150);
   }
-  throw new Error('已有 ChatKeepsake 在运行。请关闭原来的启动窗口，再从文件夹打开工具。');
+  throw new Error('已有一版工具在运行。请关闭原来的启动窗口，再从文件夹打开工具。');
 }
 
 async function showPage(url, reused = false) {
-  console.log((reused ? '正在打开已有的 ChatKeepsake 页面。' : 'ChatKeepsake 已启动。请保持此窗口打开。') + '\n' + url);
-  if (process.platform !== 'win32' || process.env.CHATKEEPSAKE_NO_OPEN) return true;
+  console.log((reused ? '正在打开已有的 WeChat Chats to Files 页面。' : 'WeChat Chats to Files 已启动。请保持此窗口打开。') + '\n' + url);
+  if (process.platform !== 'win32' || process.env.WECHAT_CHATS_TO_FILES_NO_OPEN) return true;
   try {
     const result = await runProcess('powershell.exe', [
       '-NoProfile', '-NonInteractive', '-Command',
-      "$ErrorActionPreference = 'Stop'; Start-Process -FilePath $env:CHATKEEPSAKE_BROWSER_URL"
-    ], { env: { ...process.env, CHATKEEPSAKE_BROWSER_URL: url }, signal: AbortSignal.timeout(10000) });
+      "$ErrorActionPreference = 'Stop'; Start-Process -FilePath $env:WECHAT_CHATS_TO_FILES_BROWSER_URL"
+    ], { env: { ...process.env, WECHAT_CHATS_TO_FILES_BROWSER_URL: url }, signal: AbortSignal.timeout(10000) });
     if (result.code === 0) return true;
   } catch {}
   console.error('无法打开默认浏览器。请复制上方完整地址到浏览器打开。');
   return false;
 }
 
-async function launch({ createServer, dataDirectory, apiVersion }) {
-  fs.mkdirSync(dataDirectory, { recursive: true });
-  const file = path.join(dataDirectory, 'running.lock');
+async function launch({ createServer, lockDirectory, apiVersion }) {
+  fs.mkdirSync(lockDirectory, { recursive: true });
+  const file = path.join(lockDirectory, 'running.lock');
   if (!claimInstance(file)) {
     if (!await showPage(await runningPage(file, apiVersion), true)) process.exitCode = 1;
     return;
   }
-  const { server, token } = createServer({ dataDirectory });
+  const { server, token } = createServer();
   await new Promise((resolve, reject) => {
     server.once('error', reject);
     server.listen(0, '127.0.0.1', resolve);

@@ -5,8 +5,8 @@ using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 
-[assembly: System.Reflection.AssemblyTitle("ChatKeepsake")]
-[assembly: System.Reflection.AssemblyProduct("ChatKeepsake")]
+[assembly: System.Reflection.AssemblyTitle("WeChat Chats to Files")]
+[assembly: System.Reflection.AssemblyProduct("WeChat Chats to Files")]
 
 internal static class Launcher
 {
@@ -15,11 +15,11 @@ internal static class Launcher
         try
         {
             if (!Console.IsOutputRedirected)
-                Console.Title = "ChatKeepsake";
+                Console.Title = "WeChat Chats to Files";
             Console.OutputEncoding = new UTF8Encoding(false);
             if (RunApplication() == 0)
                 return 0;
-            return ShowError("ChatKeepsake 没能打开，请查看上面的提示。");
+            return ShowError("WeChat Chats to Files 没能打开，请查看上面的提示。");
         }
         catch (Exception error)
         {
@@ -66,7 +66,7 @@ internal static class Launcher
     private static void VerifyApplication(string app, List<FileStream> files)
     {
         var expected = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        using (Stream manifest = typeof(Launcher).Assembly.GetManifestResourceStream("ChatKeepsake.files"))
+        using (Stream manifest = typeof(Launcher).Assembly.GetManifestResourceStream("WeChatChatsToFiles.files"))
         using (var reader = new StreamReader(manifest, Encoding.UTF8))
         {
             string entry;

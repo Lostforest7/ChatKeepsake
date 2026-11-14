@@ -12,7 +12,7 @@ function localFolder(directory) {
 }
 
 function checkWritable(directory) {
-  const probe = path.join(directory, '.chatkeepsake-write-' + crypto.randomBytes(6).toString('hex') + '.tmp');
+  const probe = path.join(directory, '.wechat-chats-to-files-write-' + crypto.randomBytes(6).toString('hex') + '.tmp');
   const file = fs.openSync(probe, 'wx');
   fs.closeSync(file);
   fs.unlinkSync(probe);
@@ -24,22 +24,27 @@ function resolveFolder(directory) {
   return canonical;
 }
 
-function createSaveLocation(dataDirectory) {
+function createSaveLocation(dataDirectory, previousDataDirectory) {
   const defaultFolder = path.join(path.resolve(dataDirectory), 'exports');
+  const previousDefault = previousDataDirectory && path.join(previousDataDirectory, 'exports');
   const settingsFile = path.join(dataDirectory, 'save-location.json');
   const folderKey = folder => process.platform === 'win32' ? folder.toLowerCase() : folder;
   let current = defaultFolder;
-  let folders = [defaultFolder];
-  try {
-    const saved = JSON.parse(fs.readFileSync(settingsFile, 'utf8'));
-    if (localFolder(saved.current)) current = path.normalize(saved.current);
-    if (Array.isArray(saved.folders)) {
-      for (const folder of saved.folders) {
-        if (localFolder(folder)) folders.push(path.normalize(folder));
+  let folders = previousDefault ? [defaultFolder, previousDefault] : [defaultFolder];
+  for (const directory of [dataDirectory, previousDataDirectory].filter(Boolean)) {
+    try {
+      const saved = JSON.parse(fs.readFileSync(path.join(directory, 'save-location.json'), 'utf8'));
+      if (localFolder(saved?.current)) {
+        const folder = path.normalize(saved.current);
+        if (directory === dataDirectory || folderKey(folder) !== folderKey(previousDefault)) current = folder;
       }
+      if (Array.isArray(saved?.folders)) {
+        folders.push(...saved.folders.filter(localFolder).map(folder => path.normalize(folder)));
+      }
+      break;
+    } catch {
+      // A new installation has no saved location.
     }
-  } catch {
-    // A new installation has no saved location.
   }
   folders = [...new Map([...folders, current].map(folder => [folderKey(folder), folder])).values()];
 

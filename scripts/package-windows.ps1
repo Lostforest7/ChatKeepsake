@@ -20,18 +20,18 @@ $nodeFolder = "node-v$nodeVersion-win-x64"
 $nodeZipName = "$nodeFolder.zip"
 # SHA-256 from the official Node.js release announcement.
 $nodeZipSha256 = 'e612af99f626ab415ea225af6bce5c971feb448cb5cae250bb1c3fa50c5f7d9f'
-$archiveName = if ($SignLauncher -or $UseCommandLauncher) { 'ChatKeepsake-Windows-x64.zip' } else { 'ChatKeepsake-Windows-x64-unsigned.zip' }
+$archiveName = if ($SignLauncher -or $UseCommandLauncher) { 'WeChat-Chats-to-Files-Windows-x64.zip' } else { 'WeChat-Chats-to-Files-Windows-x64-unsigned.zip' }
 
 # Package only committed application files. Local exports and installed helpers stay out of the ZIP.
 $appFiles = @(
   'LICENSE', 'licenses', 'PRIVACY.md', 'THIRD_PARTY_NOTICES.md', 'package.json', 'package-lock.json',
-  'archive.js', 'chat-content.js', 'chat-payments.js', 'discover-wechat.js', 'download-assets.js',
+  'app-data.js', 'archive.js', 'chat-content.js', 'chat-payments.js', 'discover-wechat.js', 'download-assets.js',
   'export-excel.js', 'launcher.js', 'make-viewer.js', 'media.js', 'payment-ledger.js', 'repair-videos.js', 'repair-voices.js',
   'run-process.js', 'save-attachments.js', 'save-location.js', 'server.js', 'transcribe.py',
   'voice-assets.json', 'voice-runtime.js', 'weflow.js',
   'public', 'viewer', 'demo', 'scripts/wechat-open-databases.ps1'
 )
-$commandLauncher = '启动 ChatKeepsake.cmd'
+$commandLauncher = '启动 WeChat Chats to Files.cmd'
 $launcherFiles = @(
   if ($UseCommandLauncher) { $commandLauncher }
   else { 'scripts/windows/Launcher.cs'; 'scripts/windows/launcher.manifest' }
@@ -42,7 +42,7 @@ $output = [IO.Directory]::CreateDirectory($outputPath).FullName
 $archive = Join-Path $output $archiveName
 if (Test-Path -LiteralPath $archive) { throw "Output already exists: $archive" }
 
-$buildName = '.chatkeepsake-build-' + [guid]::NewGuid().ToString('N')
+$buildName = '.wechat-chats-to-files-build-' + [guid]::NewGuid().ToString('N')
 $build = Join-Path $output $buildName
 New-Item -ItemType Directory -Path $build | Out-Null
 try {
@@ -58,7 +58,7 @@ try {
   git -C $repo archive --format=zip "--output=$sourceArchive" $commit -- @appFiles @launcherFiles
   if ($LASTEXITCODE -ne 0) { throw 'Could not archive the application files from Git.' }
 
-  $bundle = Join-Path $build 'ChatKeepsake'
+  $bundle = Join-Path $build 'WeChat Chats to Files'
   $app = Join-Path $bundle 'app'
   [IO.Compression.ZipFile]::ExtractToDirectory($sourceArchive, $app)
 
@@ -100,16 +100,16 @@ try {
     [IO.File]::WriteAllLines((Join-Path $build 'integrity.txt'), [string[]] $checksums)
 
     $compiler = Join-Path $env:SystemRoot 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
-    $launcher = Join-Path $bundle 'ChatKeepsake.exe'
+    $launcher = Join-Path $bundle 'WeChat Chats to Files.exe'
     $compilerArgs = @(
       '/nologo', '/optimize+', '/warnaserror+', '/target:exe', '/platform:x64', '/codepage:65001',
-      "/out:$launcher", '/win32manifest:launcher.manifest', '/resource:integrity.txt,ChatKeepsake.files',
+      "/out:$launcher", '/win32manifest:launcher.manifest', '/resource:integrity.txt,WeChatChatsToFiles.files',
       'Launcher.cs', 'Version.cs'
     )
     Push-Location -LiteralPath $build
     try {
       & $compiler @compilerArgs
-      if ($LASTEXITCODE -ne 0) { throw 'Could not compile ChatKeepsake.exe.' }
+      if ($LASTEXITCODE -ne 0) { throw 'Could not compile WeChat Chats to Files.exe.' }
     } finally {
       Pop-Location
     }

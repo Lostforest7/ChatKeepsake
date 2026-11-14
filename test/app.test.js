@@ -10,6 +10,9 @@ const { spawn } = require('node:child_process');
 const { setTimeout: delay } = require('node:timers/promises');
 const { test } = require('node:test');
 const { createServer } = require('../server');
+const { createArchives } = require('../archive');
+const { createSaveLocation } = require('../save-location');
+const { profileName } = require('../app-data');
 const { createWeFlow } = require('../weflow');
 const { discoverWeChatAccounts, configuredPaths } = require('../discover-wechat');
 const { paymentBackend, bob, group, missing, inaccessible } = require('../fixtures/payment');
@@ -17,7 +20,7 @@ const { paymentBackend, bob, group, missing, inaccessible } = require('../fixtur
 const demo = path.resolve(__dirname, '../demo');
 
 test('exports several chats and one ledger, preserves partial successes, and omits the ledger when disabled', async t => {
-  const directory = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'chatkeepsake-payments-')));
+  const directory = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'wechat-chats-to-files-payments-')));
   const backend = paymentBackend();
   const opened = [];
   const { server, token } = createServer({ dataDirectory: directory, backend, openPath: target => opened.push(target) });
@@ -107,7 +110,7 @@ test('exports several chats and one ledger, preserves partial successes, and omi
 });
 
 test('a clean install rejects an unknown component archive', async t => {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'chatkeepsake-invalid-'));
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'wechat-chats-to-files-invalid-'));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   const backend = createWeFlow(directory);
   assert.equal(backend.isInstalled(), false);
@@ -116,7 +119,7 @@ test('a clean install rejects an unknown component archive', async t => {
 });
 
 test('the launcher reuses a compatible process and warns about an older one', { timeout: 15000 }, async t => {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'chatkeepsake-launcher-'));
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'wechat-chats-to-files-launcher-'));
   const localAppData = path.join(directory, '另一位用户', 'AppData', 'Local');
   const children = [];
   t.after(async () => {
@@ -131,7 +134,8 @@ test('the launcher reuses a compatible process and warns about an older one', { 
   });
 
   function launch() {
-    const env = { ...process.env, LOCALAPPDATA: localAppData, CHATKEEPSAKE_NO_OPEN: '1' };
+    const env = { ...process.env, LOCALAPPDATA: localAppData, WECHAT_CHATS_TO_FILES_NO_OPEN: '1' };
+    delete env.WECHAT_CHATS_TO_FILES_DATA_DIR;
     delete env.CHATKEEPSAKE_DATA_DIR;
     const child = spawn(process.execPath, [path.join(__dirname, '../server.js')], {
       env,
@@ -149,14 +153,14 @@ test('the launcher reuses a compatible process and warns about an older one', { 
   const first = launch();
   for (let attempts = 0; attempts < 100 && !first.address(); attempts++) await delay(50);
   assert.ok(first.address(), 'The primary launcher should report a local address');
-  assert.ok(fs.statSync(path.join(localAppData, 'ChatKeepsake', 'exports')).isDirectory());
+  assert.ok(fs.statSync(path.join(localAppData, 'WeChatChatsToFiles', 'exports')).isDirectory());
   const second = launch();
   const [code] = await once(second.child, 'close');
   assert.equal(code, 0);
   assert.ok(second.address() === first.address(), 'Both launches should report the same local address');
   assert.equal(first.child.exitCode, null);
 
-  const lockFile = path.join(localAppData, 'ChatKeepsake', 'running.lock');
+  const lockFile = path.join(localAppData, 'WeChatChatsToFiles', 'running.lock');
   const olderState = JSON.parse(fs.readFileSync(lockFile, 'utf8'));
   delete olderState.apiVersion;
   fs.writeFileSync(lockFile, JSON.stringify(olderState));
@@ -168,8 +172,50 @@ test('the launcher reuses a compatible process and warns about an older one', { 
   assert.equal(first.child.exitCode, null);
 });
 
+test('older exports and a custom save folder remain available after renaming', async t => {
+  const scratch = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'wechat-chats-to-files-upgrade-')));
+  t.after(() => {
+    assert.equal(path.dirname(scratch), fs.realpathSync.native(os.tmpdir()));
+    fs.rmSync(scratch, { recursive: true, force: true });
+  });
+  const legacy = path.join(scratch, 'ChatKeepsake');
+  const data = path.join(scratch, 'WeChatChatsToFiles');
+  const oldExports = path.join(legacy, 'exports');
+  const newExports = path.join(data, 'exports');
+  const custom = path.join(scratch, '之前选择的保存位置');
+  for (const directory of [oldExports, newExports, custom]) fs.mkdirSync(directory, { recursive: true });
+  const backend = paymentBackend();
+  const fromOldDefault = await createArchives(oldExports).exportChat({ session: bob }, backend);
+  const fromCustom = await createArchives(custom).exportChat({ session: group }, backend);
+  const settings = path.join(legacy, 'save-location.json');
+  fs.writeFileSync(settings, JSON.stringify({ current: oldExports, folders: [oldExports, custom] }));
+
+  let locations = createSaveLocation(data, legacy);
+  assert.equal(locations.current, newExports);
+  assert.equal(locations.ready(), newExports);
+  fs.writeFileSync(settings, JSON.stringify({ current: custom, folders: [oldExports, custom] }));
+  locations = createSaveLocation(data, legacy);
+  assert.equal(locations.current, custom);
+  assert.deepEqual(new Set(locations.list().map(record => record.id)), new Set([fromOldDefault.id, fromCustom.id]));
+  assert.equal(locations.get(fromOldDefault.id).directory, path.join(oldExports, fromOldDefault.id));
+
+  locations.select(newExports);
+  assert.equal(createSaveLocation(data, legacy).current, newExports);
+  assert.equal(createSaveLocation(data, legacy).get(fromCustom.id).directory, path.join(custom, fromCustom.id));
+  assert.equal(JSON.parse(fs.readFileSync(settings, 'utf8')).current, custom);
+});
+
+test('existing account settings are reused and new accounts use the new profile name', async () => {
+  const oldProfile = 'chatkeepsake-example';
+  const newProfile = 'wechat-chats-to-files-example';
+  const backend = (...names) => ({ run: async () => ({ ok: true, data: names.map(name => ({ name })) }) });
+  assert.equal(await profileName(backend(oldProfile), 'example'), oldProfile);
+  assert.equal(await profileName(backend(oldProfile, newProfile), 'example'), newProfile);
+  assert.equal(await profileName(backend(), 'example'), newProfile);
+});
+
 test('export and transcribe a synthetic chat through the local API', { timeout: 20000 }, async t => {
-  const directory = await fs.promises.realpath(fs.mkdtempSync(path.join(os.tmpdir(), 'chatkeepsake-api-')));
+  const directory = await fs.promises.realpath(fs.mkdtempSync(path.join(os.tmpdir(), 'wechat-chats-to-files-api-')));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   const image = fs.readFileSync(path.join(demo, 'media/demo/trail.png'));
   const audio = fs.readFileSync(path.join(demo, 'media/demo/voice.wav'));
@@ -391,12 +437,16 @@ test('export and transcribe a synthetic chat through the local API', { timeout: 
     assert.fail('Job did not finish');
   }
 
-  assert.equal((await fetch(base + '/')).status, 200);
+  const homepage = await fetch(base + '/');
+  assert.equal(homepage.status, 200);
+  assert.match(await homepage.text(), /<title>WeChat Chats to Files/);
   const privacy = await fetch(base + '/privacy/');
   assert.equal(privacy.status, 200);
   assert.match(await privacy.text(), /聊天记录留在你的电脑上/);
   assert.match(privacy.headers.get('content-security-policy'), /connect-src 'self'/);
-  assert.match(await (await fetch(base + '/demo/')).text(), /周末散步/);
+  const demoPage = await (await fetch(base + '/demo/')).text();
+  assert.match(demoPage, /周末散步/);
+  assert.match(demoPage, /<title>[^<]+ · WeChat Chats to Files<\/title>/);
   assert.equal((await call('info', {}, { 'X-Local-Token': 'invalid' })).status, 403);
   assert.equal((await call('info', {}, { Origin: 'https://example.invalid' })).status, 403);
   assert.equal((await fetch(base + '/weflow-data/config.json')).status, 403);
@@ -404,7 +454,7 @@ test('export and transcribe a synthetic chat through the local API', { timeout: 
   assert.equal(info.voiceReady, false);
   assert.equal(info.voiceSupported, true);
   assert.equal(info.voiceDownloadMb, 600);
-  assert.equal(info.apiVersion, 9);
+  assert.equal(info.apiVersion, 10);
   assert.equal(info.exportsDirectory, path.join(directory, 'exports'));
   assert.equal(info.installed, false);
   assert.equal((await call('install-online', {}, { 'X-Local-Token': 'invalid' })).status, 403);

@@ -1,4 +1,4 @@
-"""Generate a resumable transcript checkpoint for one ChatKeepsake export."""
+"""Generate a resumable transcript checkpoint for one WeChat Chats to Files export."""
 
 import hashlib
 import json

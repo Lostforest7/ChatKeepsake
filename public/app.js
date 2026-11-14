@@ -2,9 +2,9 @@
 
 const $ = id => document.getElementById(id);
 const tokenFromAddress = location.hash.slice(1);
-const token = /^[a-f0-9]{64}$/.test(tokenFromAddress) ? tokenFromAddress : sessionStorage.getItem('chatKeepsakeToken') || '';
+const token = /^[a-f0-9]{64}$/.test(tokenFromAddress) ? tokenFromAddress : sessionStorage.getItem('wechatChatsToFilesToken') || '';
 if (tokenFromAddress) {
-  sessionStorage.setItem('chatKeepsakeToken', token);
+  sessionStorage.setItem('wechatChatsToFilesToken', token);
   history.replaceState(null, '', location.pathname);
 }
 
@@ -98,8 +98,8 @@ function updateControls() {
 
 async function loadEnvironment() {
   const info = await call('info');
-  if (info.apiVersion !== 9) {
-    throw new Error('旧版 ChatKeepsake 还在运行。请关闭原来的启动窗口，再从文件夹打开工具。');
+  if (info.apiVersion !== 10) {
+    throw new Error('旧版工具还在运行。请关闭原来的启动窗口，再从文件夹打开工具。');
   }
   environment = info;
   $('download').href = environment.download;

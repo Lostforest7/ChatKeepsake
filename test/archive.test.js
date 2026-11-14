@@ -10,7 +10,7 @@ const { messageType } = require('../chat-content');
 
 function temporaryExports(t) {
   const parent = fs.realpathSync(os.tmpdir());
-  const directory = fs.mkdtempSync(path.join(parent, 'chatkeepsake-archives-'));
+  const directory = fs.mkdtempSync(path.join(parent, 'wechat-chats-to-files-archives-'));
   t.after(() => {
     const resolved = fs.realpathSync(directory);
     assert.equal(path.dirname(resolved), parent);

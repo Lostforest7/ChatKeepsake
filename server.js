@@ -2,7 +2,6 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const os = require('node:os');
 const http = require('node:http');
 const crypto = require('node:crypto');
 const { spawn } = require('node:child_process');
@@ -17,11 +16,11 @@ const { discoverWeChatAccounts } = require('./discover-wechat');
 const { createVoiceRuntime } = require('./voice-runtime');
 const { createSaveLocation } = require('./save-location');
 const { ledgerFile } = require('./payment-ledger');
+const { dataPaths, profileName } = require('./app-data');
 
 const root = __dirname;
-const apiVersion = 9;
+const apiVersion = 10;
 const demoDir = path.join(root, 'demo');
-const defaultDataDirectory = path.join(process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local'), 'ChatKeepsake');
 const staticFiles = new Map([
   ['/', ['public/index.html', 'text/html; charset=utf-8']],
   ['/privacy/', ['public/privacy.html', 'text/html; charset=utf-8']],
@@ -81,17 +80,19 @@ function launchExplorer(target) {
   });
 }
 
-function createServer({
-  dataDirectory = process.env.CHATKEEPSAKE_DATA_DIR || defaultDataDirectory,
-  backend = createWeFlow(dataDirectory),
-  voiceRuntime = createVoiceRuntime(dataDirectory),
-  openPath = launchExplorer,
-  transcribeProcess = runProcess,
-  findAccounts = discoverWeChatAccounts
-} = {}) {
-  const lastConnectionFile = path.join(dataDirectory, 'last-connected.json');
+function createServer(options = {}) {
+  const { dataDirectory, previousDataDirectory } = options.dataDirectory ? options : dataPaths();
+  const componentDirectory = previousDataDirectory || dataDirectory;
+  const {
+    backend = createWeFlow(componentDirectory),
+    voiceRuntime = createVoiceRuntime(componentDirectory),
+    openPath = launchExplorer,
+    transcribeProcess = runProcess,
+    findAccounts = discoverWeChatAccounts
+  } = options;
+  const lastConnectionFile = path.join(componentDirectory, 'last-connected.json');
   fs.mkdirSync(path.join(dataDirectory, 'exports'), { recursive: true });
-  const saveLocation = createSaveLocation(dataDirectory);
+  const saveLocation = createSaveLocation(dataDirectory, previousDataDirectory);
   const token = crypto.randomBytes(32).toString('hex');
   let activity = { state: 'idle' };
   let handlingAction = false;
@@ -147,7 +148,8 @@ function createServer({
       const folder = fs.realpathSync(body.path);
       const id = crypto.createHash('sha256').update(folder.toLowerCase() + '\0' + body.account).digest('hex').slice(0, 24);
       const errorMessage = '没能记住所选微信。请点「重新查找」，再选一次。';
-      await backendData(['config', 'set', 'current_profile', 'chatkeepsake-' + id], errorMessage);
+      const name = await profileName(backend, id);
+      await backendData(['config', 'set', 'current_profile', name], errorMessage);
       await backendData(['config', 'set', 'db_path', folder], errorMessage);
       await backendData(['config', 'set', 'wxid', body.account], errorMessage);
       return { message: '已选好微信。现在可以检查能不能读取聊天。' };
@@ -333,7 +335,7 @@ function createServer({
       }
     }
     if (request.method !== 'POST' || request.headers.origin !== base || request.headers['x-local-token'] !== token) {
-      return reply(response, 403, { error: '这个页面已经过期。请从 ChatKeepsake 文件夹重新打开工具。' });
+      return reply(response, 403, { error: '这个页面已经过期。请从 WeChat Chats to Files 文件夹重新打开工具。' });
     }
     if (route === '/api/status') return reply(response, 200, activity);
     if (route === '/api/info') {
@@ -374,8 +376,12 @@ function createServer({
 }
 
 if (require.main === module) {
-  const dataDirectory = path.resolve(process.env.CHATKEEPSAKE_DATA_DIR || defaultDataDirectory);
-  launch({ createServer, dataDirectory, apiVersion }).catch(error => {
+  const directories = dataPaths();
+  launch({
+    createServer: () => createServer(directories),
+    lockDirectory: directories.previousDataDirectory || directories.dataDirectory,
+    apiVersion
+  }).catch(error => {
     console.error(error.message);
     process.exitCode = 1;
   });

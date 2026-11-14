@@ -83,23 +83,23 @@ function createVoiceRuntime(dataDirectory) {
       const extraction = await runProcess(windowsPowerShell, ['-NoProfile', '-NonInteractive', '-Command', [
         "$ErrorActionPreference = 'Stop'",
         'Add-Type -AssemblyName System.IO.Compression.FileSystem',
-        '[IO.Compression.ZipFile]::ExtractToDirectory($env:CHATKEEPSAKE_VOICE_ZIP, $env:CHATKEEPSAKE_VOICE_BUILD)',
-        '$vc = [IO.Compression.ZipFile]::OpenRead($env:CHATKEEPSAKE_VOICE_VC)',
+        '[IO.Compression.ZipFile]::ExtractToDirectory($env:WECHAT_CHATS_TO_FILES_VOICE_ZIP, $env:WECHAT_CHATS_TO_FILES_VOICE_BUILD)',
+        '$vc = [IO.Compression.ZipFile]::OpenRead($env:WECHAT_CHATS_TO_FILES_VOICE_VC)',
         'try {',
         '  foreach ($entry in $vc.Entries) {',
         "    if ($entry.FullName -match '^msvc_runtime-[^/]+\\.data/data/([a-z0-9_]+\\.dll)$') {",
-        '      $target = Join-Path $env:CHATKEEPSAKE_VOICE_BUILD $Matches[1]',
+        '      $target = Join-Path $env:WECHAT_CHATS_TO_FILES_VOICE_BUILD $Matches[1]',
         '      [IO.Compression.ZipFileExtensions]::ExtractToFile($entry, $target, $false)',
         "    } elseif ($entry.FullName -match '^msvc_runtime-[^/]+\\.dist-info/licenses/LICENSE$') {",
-        "      $target = Join-Path $env:CHATKEEPSAKE_VOICE_BUILD 'MSVC-LICENSE.txt'",
+        "      $target = Join-Path $env:WECHAT_CHATS_TO_FILES_VOICE_BUILD 'MSVC-LICENSE.txt'",
         '      [IO.Compression.ZipFileExtensions]::ExtractToFile($entry, $target, $false)',
         '    }',
         '  }',
         '} finally { $vc.Dispose() }'
       ].join('\n')], {
         env: {
-          ...process.env, CHATKEEPSAKE_VOICE_ZIP: path.join(downloads, assets.python.name),
-          CHATKEEPSAKE_VOICE_VC: path.join(downloads, assets.vc.name), CHATKEEPSAKE_VOICE_BUILD: stage
+          ...process.env, WECHAT_CHATS_TO_FILES_VOICE_ZIP: path.join(downloads, assets.python.name),
+          WECHAT_CHATS_TO_FILES_VOICE_VC: path.join(downloads, assets.vc.name), WECHAT_CHATS_TO_FILES_VOICE_BUILD: stage
         },
         signal: AbortSignal.timeout(60000)
       });
@@ -124,7 +124,7 @@ function createVoiceRuntime(dataDirectory) {
         signal: AbortSignal.timeout(180000)
       });
       if (installed.code !== 0 || !await checkPython(python)) {
-        throw new Error('这台电脑没能启动语音组件。请检查磁盘空间，重开 ChatKeepsake 后再试。');
+        throw new Error('这台电脑没能启动语音组件。请检查磁盘空间，重开 WeChat Chats to Files 后再试。');
       }
       await files.writeFile(path.join(stage, '.ready'), assets.runtimeId + '\n');
       if (fs.existsSync(runtime)) await removeBuild(runtime, dataDirectory, runtimeName);

@@ -14,9 +14,9 @@ Windows 免安装版包含 [Node.js 官方发布的 Windows x64 运行文件](ht
 
 ## WeFlow CLI v5.0.1
 
-ChatKeepsake 通过进程调用 Windows x64 版 WeFlow CLI 来读取、导出用户所选会话。点击「安装读取助手」后，程序从 [334456777/WeFlow 的 v5.0.1 发布页](https://github.com/334456777/WeFlow/releases/tag/v5.0.1) 下载原版组件。仓库发布 ChatKeepsake 的源码与示例。
+WeChat Chats to Files 通过进程调用 Windows x64 版 WeFlow CLI 来读取、导出用户所选会话。点击「安装读取助手」后，程序从 [334456777/WeFlow 的 v5.0.1 发布页](https://github.com/334456777/WeFlow/releases/tag/v5.0.1) 下载原版组件。仓库发布 WeChat Chats to Files 的源码与示例。
 
-该版本使用 [CC BY-NC-SA 4.0](https://github.com/334456777/WeFlow/blob/v5.0.1/LICENSE)，包含非商业使用限制。ChatKeepsake 的 MIT 许可只覆盖本项目的代码。安装时保留 WeFlow 的许可证文件。
+该版本使用 [CC BY-NC-SA 4.0](https://github.com/334456777/WeFlow/blob/v5.0.1/LICENSE)，包含非商业使用限制。WeChat Chats to Files 的 MIT 许可只覆盖本项目的代码。安装时保留 WeFlow 的许可证文件。
 
 安装时按发布页的 [资产摘要](https://github.com/334456777/WeFlow/releases/expanded_assets/v5.0.1) 校验 ZIP 的 SHA-256。
 
